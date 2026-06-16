@@ -6,6 +6,11 @@
   <title>Mi Información - Menú Rápido</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#f97316">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
   <style>
     :root {
       --color-primario: #f97316;

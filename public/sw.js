@@ -1,8 +1,7 @@
-const CACHE_NAME = 'menu-rapido-v1';
+const CACHE_NAME = 'menu-express-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/admin.html',
   '/registro.html',
   '/manifest.json'
 ];
@@ -11,6 +10,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -24,13 +24,35 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
-  // Para API calls, usar red primero
-  if (event.request.url.includes('/api/')) {
+  const { url } = event.request;
+
+  // Stale-while-revalidate para /api/menu y /api/config
+  if (url.includes('/api/menu') || url.includes('/api/config')) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(cachedResponse => {
+          const fetchPromise = fetch(event.request)
+            .then(response => {
+              if (response.status === 200) {
+                const responseClone = response.clone();
+                caches.open(CACHE_NAME).then(cache => {
+                  cache.put(event.request, responseClone);
+                });
+              }
+              return response;
+            })
+            .catch(() => cachedResponse);
+
+          return cachedResponse || fetchPromise;
+        })
+    );
+  } else {
+    // Network-first para todo lo demás
     event.respondWith(
       fetch(event.request)
         .then(response => {
@@ -42,14 +64,10 @@ self.addEventListener('fetch', event => {
           }
           return response;
         })
-        .catch(() => caches.match(event.request))
-    );
-  } else {
-    // Para otros recursos, cache primero
-    event.respondWith(
-      caches.match(event.request)
-        .then(response => response || fetch(event.request))
-        .catch(() => new Response('Sin conexión', { status: 503 }))
+        .catch(() => 
+          caches.match(event.request)
+            .then(response => response || new Response('Sin conexión', { status: 503 }))
+        )
     );
   }
 });

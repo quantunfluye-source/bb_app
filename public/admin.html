@@ -319,6 +319,7 @@
   <script>
     const API_URL = '';
     let adminAuth = false;
+    let adminPassword = localStorage.getItem('mr_admin_password') || '';
 
     function mostrarMensaje(texto, tipo = 'exito') {
       const div = document.getElementById('mensajeDiv');
@@ -341,6 +342,8 @@
 
         if (res.ok) {
           adminAuth = true;
+          adminPassword = password;
+          localStorage.setItem('mr_admin_password', password);
           document.getElementById('authSection').style.display = 'none';
           document.getElementById('panelSection').style.display = 'block';
           cargarDatos();
@@ -363,14 +366,9 @@
     async function cargarDatos() {
       try {
         const configRes = await fetch(`${API_URL}/api/config`);
-        const configArray = await configRes.json();
+        const config = await configRes.json();
         
-        // Convertir array a objeto
-        const config = {};
-        configArray.forEach(item => {
-          config[item.key] = item.value;
-        });
-        
+        // config ya es un objeto {key: value}
         document.getElementById('nombreTienda').value = config.nombre_tienda || '';
         document.getElementById('telefonoTienda').value = config.telefono || '';
         document.getElementById('colorPrimario').value = config.color_primario || '#f97316';
@@ -388,6 +386,7 @@
         }
       } catch (error) {
         mostrarMensaje(`Error cargando datos: ${error.message}`, 'error');
+        console.error(error);
       }
     }
 
@@ -532,7 +531,13 @@
 
     // Cargar datos si ya estás autenticado
     window.addEventListener('load', () => {
-      if (adminAuth) cargarDatos();
+      // Intentar auto-login con contraseña guardada
+      if (adminPassword && !adminAuth) {
+        document.getElementById('adminPassword').value = adminPassword;
+        autenticar();
+      } else if (adminAuth) {
+        cargarDatos();
+      }
     });
   </script>
 </body>

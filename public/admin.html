@@ -310,7 +310,10 @@
         </div>
         <div class="form-group">
           <label for="imagenFile">Subir Imagen:</label>
-          <input type="file" id="imagenFile">
+          <input type="file" id="imagenFile" accept="image/*" capture="environment">
+          <div id="uploadProgress" style="display:none;margin-top:8px;padding:8px 12px;background:#fef3c7;border-radius:6px;font-size:13px;color:#92400e;">
+             Subiendo imagen...
+          </div>
         </div>
         <button id="btnPlatilloSubmit" onclick="agregarPlatillo()">➕ Agregar Platillo</button>
 
@@ -451,6 +454,8 @@
 
       try {
         if (imagenFile) {
+          const progress = document.getElementById('uploadProgress');
+          progress.style.display = 'block';
           const formData = new FormData();
           formData.append('imagen', imagenFile);
 
@@ -459,6 +464,7 @@
             headers: { 'x-admin-password': adminPassword },
             body: formData
           });
+          progress.style.display = 'none';
 
           if (uploadRes.ok) {
             const uploadData = await uploadRes.json();
@@ -480,9 +486,14 @@
         });
 
         if (res.ok) {
-          mostrarMensaje('✅ Platillo agregado', 'exito');
+          const nuevoPlatillo = await res.json();
+          mostrarMensaje('✅ Platillo agregado correctamente', 'exito');
           limpiarFormularioPlatillo();
-          cargarDatos();
+          // Actualizar array local y re-renderizar sin saltar de pantalla
+          const cat = nuevoPlatillo.categoria || data.categoria;
+          if (!menu[cat]) menu[cat] = [];
+          menu[cat].push(nuevoPlatillo);
+          mostrarPlatillos(menu);
         } else {
           const errText = await res.text();
           mostrarMensaje(`❌ Error: ${errText}`, 'error');
@@ -573,7 +584,7 @@
           });
           mostrarMensaje(`✅ Platillo movido a "${targetCat}"`, 'exito');
         } else {
-          const cat = APP.menu[dragSrcCat] || [];
+          const cat = menu[dragSrcCat] || [];
           const srcIdx = cat.findIndex(p => p.id === dragSrcId);
           const tgtIdx = cat.findIndex(p => p.id === targetId);
           if (srcIdx === -1 || tgtIdx === -1) return;
@@ -588,7 +599,22 @@
             })
           ));
         }
-        await cargarDatos();
+        // Re-renderizar en el DOM sin recargar toda la página
+        if (dragSrcCat !== targetCat) {
+          // Mover el platillo al array de la nueva categoría en memoria
+          const srcCat = menu[dragSrcCat] || [];
+          const idx = srcCat.findIndex(p => p.id === dragSrcId);
+          if (idx !== -1) {
+            const [movido] = srcCat.splice(idx, 1);
+            movido.categoria = targetCat;
+            if (!menu[targetCat]) menu[targetCat] = [];
+            menu[targetCat].push(movido);
+            // Si la categoría origen quedó vacía, eliminarla del objeto
+            if (srcCat.length === 0) delete menu[dragSrcCat];
+          }
+          mostrarMensaje(`✅ Platillo movido a "${targetCat}"`, 'exito');
+        }
+        mostrarPlatillos(menu);
       } catch (err) {
         mostrarMensaje('❌ Error al reordenar: ' + err.message, 'error');
       }
@@ -629,8 +655,8 @@
     function editarPlatillo(id) {
       // Buscar el platillo en el menú
       let platillo = null;
-      for (let cat in APP.menu) {
-        const found = APP.menu[cat].find(p => p.id === id);
+      for (let cat in menu) {
+        const found = menu[cat].find(p => p.id === id);
         if (found) {
           platillo = found;
           break;
@@ -654,9 +680,13 @@
       const btnAgregar = document.getElementById('btnPlatilloSubmit');
       btnAgregar.textContent = '💾 Guardar Cambios';
 
-      // Scroll a formulario
-      document.getElementById('platillos').scrollIntoView({ behavior: 'smooth' });
-      mostrarMensaje('Editando platillo - Actualiza los campos y guarda', 'exito');
+      // Activar tab de platillos y hacer scroll al formulario
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('platillos').classList.add('active');
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      mostrarMensaje('✏️ Editando platillo — modifica los campos y pulsa Guardar Cambios', 'exito');
     }
 
     async function guardarCambiosPlatillo(id) {

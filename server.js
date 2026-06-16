@@ -116,6 +116,22 @@ app.post('/api/clientes', async (req, res) => {
   }
 });
 
+// GET /api/clientes - Devuelve todos los clientes (público)
+app.get('/api/clientes', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json(data || []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/clientes/:session_id - Devuelve datos del cliente
 app.get('/api/clientes/:session_id', async (req, res) => {
   try {

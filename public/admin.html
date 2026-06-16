@@ -363,7 +363,13 @@
     async function cargarDatos() {
       try {
         const configRes = await fetch(`${API_URL}/api/config`);
-        const config = await configRes.json();
+        const configArray = await configRes.json();
+        
+        // Convertir array a objeto
+        const config = {};
+        configArray.forEach(item => {
+          config[item.key] = item.value;
+        });
         
         document.getElementById('nombreTienda').value = config.nombre_tienda || '';
         document.getElementById('telefonoTienda').value = config.telefono || '';

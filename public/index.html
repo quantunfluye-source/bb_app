@@ -470,7 +470,15 @@
       async loadConfig() {
         try {
           const res = await fetch('/api/config');
-          this.config = await res.json();
+          const configArray = await res.json();
+          
+          // Convertir array [{key, value}] a objeto {key: value}
+          this.config = {};
+          if (Array.isArray(configArray)) {
+            configArray.forEach(item => {
+              this.config[item.key] = item.value;
+            });
+          }
         } catch (e) {
           console.error('Error cargando config:', e);
           this.config = {};

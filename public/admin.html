@@ -319,7 +319,7 @@
   <script>
     const API_URL = '';
     let adminAuth = false;
-    let adminPassword = localStorage.getItem('mr_admin_password') || '';
+        let adminPassword = localStorage.getItem('adminPassword') || '';
     let menu = {};  // Guardar menú para editar
 
     function mostrarMensaje(texto, tipo = 'exito') {
@@ -344,7 +344,7 @@
         if (res.ok) {
           adminAuth = true;
           adminPassword = password;
-          localStorage.setItem('mr_admin_password', password);
+          localStorage.setItem('adminPassword', password);
           document.getElementById('authSection').style.display = 'none';
           document.getElementById('panelSection').style.display = 'block';
           cargarDatos();
@@ -405,7 +405,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-admin-password': document.getElementById('adminPassword').value
+          'x-admin-password': adminPassword
             },
             body: JSON.stringify({ key, value })
           })
@@ -507,7 +507,7 @@
       try {
         const res = await fetch(`${API_URL}/api/admin/platillo/${id}`, {
           method: 'DELETE',
-          headers: { 'x-admin-password': document.getElementById('adminPassword').value }
+          headers: { 'x-admin-password': adminPassword }
         });
 
         if (res.ok) {

@@ -274,6 +274,8 @@ app.post('/api/upload/imagen', requireAdminAuth, upload.single('imagen'), async 
       return res.status(400).json({ error: 'No se subió ningún archivo' });
     }
     
+    console.log(`📸 Subiendo imagen: ${req.file.originalname}`);
+    
     const fileBuffer = fs.readFileSync(req.file.path);
     const fileName = `${Date.now()}-${req.file.originalname}`;
     
@@ -281,10 +283,16 @@ app.post('/api/upload/imagen', requireAdminAuth, upload.single('imagen'), async 
       .storage
       .from('menu-imagenes')
       .upload(fileName, fileBuffer, {
-        contentType: req.file.mimetype
+        contentType: req.file.mimetype,
+        upsert: false
       });
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error Supabase Storage:', error);
+      throw new Error(`Supabase Storage error: ${error.message}`);
+    }
+    
+    console.log('✅ Imagen subida:', fileName);
     
     // Obtener URL pública
     const { data: urlData } = supabase
@@ -295,14 +303,16 @@ app.post('/api/upload/imagen', requireAdminAuth, upload.single('imagen'), async 
     // Limpiar archivo temporal
     fs.unlinkSync(req.file.path);
     
+    console.log('🔗 URL pública:', urlData.publicUrl);
     res.json({ url: urlData.publicUrl });
   } catch (error) {
+    console.error('Upload error:', error);
     if (req.file) {
       try {
         fs.unlinkSync(req.file.path);
       } catch (e) {}
     }
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: `Upload failed: ${error.message}` });
   }
 });
 
@@ -320,5 +330,6 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✓ Servidor corriendo en http://localhost:${PORT}`);
   console.log(`✓ Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✓ Supabase URL: ${process.env.SUPABASE_URL ? '✓' : '✗'}`);
+  console.log(`✓ Supabase URL: ${process.env.SUPABASE_URL ? '✓ Conectado' : '✗ NO configurado'}`);
+  console.log(`✓ Service Key: ${process.env.SUPABASE_SERVICE_KEY ? '✓ Configurada' : '✗ NO configurada'}`);
 });

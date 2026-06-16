@@ -320,6 +320,7 @@
     const API_URL = '';
     let adminAuth = false;
     let adminPassword = localStorage.getItem('mr_admin_password') || '';
+    let menu = {};  // Guardar menú para editar
 
     function mostrarMensaje(texto, tipo = 'exito') {
       const div = document.getElementById('mensajeDiv');
@@ -376,7 +377,7 @@
         document.getElementById('tiendaNombre').textContent = config.nombre_tienda || 'Menú Express';
 
         const menuRes = await fetch(`${API_URL}/api/menu`);
-        const menu = await menuRes.json();
+        menu = await menuRes.json();
         mostrarPlatillos(menu);
 
         const clientesRes = await fetch(`${API_URL}/api/clientes`);
@@ -439,13 +440,17 @@
 
           const uploadRes = await fetch(`${API_URL}/api/upload/imagen`, {
             method: 'POST',
-            headers: { 'x-admin-password': document.getElementById('adminPassword').value },
+            headers: { 'x-admin-password': adminPassword },
             body: formData
           });
 
           if (uploadRes.ok) {
             const uploadData = await uploadRes.json();
             data.imagen_url = uploadData.url;
+          } else {
+            const errText = await uploadRes.text();
+            mostrarMensaje(`❌ Error subiendo imagen: ${errText}`, 'error');
+            return;
           }
         }
 
@@ -453,7 +458,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-admin-password': document.getElementById('adminPassword').value
+            'x-admin-password': adminPassword
           },
           body: JSON.stringify(data)
         });
@@ -467,10 +472,12 @@
           document.getElementById('imagenFile').value = '';
           cargarDatos();
         } else {
-          mostrarMensaje('❌ Error al agregar platillo', 'error');
+          const errText = await res.text();
+          mostrarMensaje(`❌ Error: ${errText}`, 'error');
         }
       } catch (error) {
         mostrarMensaje(`Error: ${error.message}`, 'error');
+        console.error('Error en agregarPlatillo:', error);
       }
     }
 
@@ -526,7 +533,82 @@
     }
 
     function editarPlatillo(id) {
-      alert('Función de edición en desarrollo');
+      // Buscar el platillo en el menú
+      let platillo = null;
+      for (let cat in APP.menu) {
+        const found = APP.menu[cat].find(p => p.id === id);
+        if (found) {
+          platillo = found;
+          break;
+        }
+      }
+
+      if (!platillo) {
+        mostrarMensaje('Platillo no encontrado', 'error');
+        return;
+      }
+
+      // Llenar formulario con datos actuales
+      document.getElementById('categoria').value = platillo.categoria;
+      document.getElementById('nombre').value = platillo.nombre;
+      document.getElementById('descripcion').value = platillo.descripcion || '';
+      document.getElementById('precio').value = platillo.precio;
+
+      // Cambiar botón a "Guardar cambios"
+      const btnAgregar = document.querySelector('[onclick="agregarPlatillo()"]');
+      btnAgregar.textContent = '💾 Guardar Cambios';
+      btnAgregar.onclick = () => guardarCambiosPlatillo(id);
+
+      // Scroll a formulario
+      document.getElementById('platillos').scrollIntoView({ behavior: 'smooth' });
+      mostrarMensaje('Editando platillo - Actualiza los campos y guarda', 'exito');
+    }
+
+    async function guardarCambiosPlatillo(id) {
+      const data = {
+        categoria: document.getElementById('categoria').value,
+        nombre: document.getElementById('nombre').value,
+        descripcion: document.getElementById('descripcion').value,
+        precio: parseFloat(document.getElementById('precio').value),
+      };
+
+      if (!data.categoria || !data.nombre || !data.precio) {
+        mostrarMensaje('Rellena todos los campos obligatorios', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/api/admin/platillo/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-password': adminPassword
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+          mostrarMensaje('✅ Platillo actualizado', 'exito');
+          document.getElementById('categoria').value = '';
+          document.getElementById('nombre').value = '';
+          document.getElementById('descripcion').value = '';
+          document.getElementById('precio').value = '';
+          document.getElementById('imagenFile').value = '';
+          
+          // Restaurar botón
+          const btnAgregar = document.querySelector('[onclick*="Guardar"]') || document.querySelector('button');
+          btnAgregar.textContent = '➕ Agregar Platillo';
+          btnAgregar.onclick = () => agregarPlatillo();
+          
+          cargarDatos();
+        } else {
+          const errText = await res.text();
+          mostrarMensaje(`❌ Error: ${errText}`, 'error');
+        }
+      } catch (error) {
+        mostrarMensaje(`Error: ${error.message}`, 'error');
+        console.error(error);
+      }
     }
 
     // Cargar datos si ya estás autenticado

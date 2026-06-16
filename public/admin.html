@@ -166,21 +166,31 @@
 
     .platillo-item {
       background: var(--color-gris-claro);
-      padding: 15px;
+      padding: 12px;
       border-radius: 8px;
       margin-bottom: 10px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 12px;
+      cursor: grab;
+      border: 2px solid transparent;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .platillo-item:active { cursor: grabbing; }
+    .platillo-item[draggable="true"]:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
     }
 
     .platillo-info {
       flex: 1;
+      min-width: 0;
     }
 
     .platillo-acciones {
       display: flex;
-      gap: 10px;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
     }
 
     .mensaje {
@@ -482,24 +492,106 @@
     }
 
     function mostrarPlatillos(menu) {
-      const html = Object.entries(menu).map(([categoria, platillos]) =>
-        `<h4>${categoria}</h4>` +
-        platillos.map(p => `
-          <div class="platillo-item">
-            <div class="platillo-info">
-              <strong>${p.nombre}</strong> - $${p.precio}
-              <p style="font-size: 12px; color: var(--color-gris);">${p.descripcion || ''}</p>
+      const categorias = Object.keys(menu);
+      const orden = ['especial', ...categorias.filter(c => c !== 'especial')];
+
+      const html = orden.filter(c => menu[c]).map(categoria => {
+        const platillos = menu[categoria];
+        const nombreCat = categoria === 'especial' ? '⭐ Especial del día' : categoria.charAt(0).toUpperCase() + categoria.slice(1);
+
+        const itemsHtml = platillos.map(p => `
+          <div class="platillo-item"
+               draggable="true"
+               data-id="${p.id}"
+               data-categoria="${p.categoria}"
+               ondragstart="dragStart(event)"
+               ondragover="dragOver(event)"
+               ondrop="dropPlatillo(event)"
+               ondragend="dragEnd(event)"
+               title="Arrastra para reordenar o cambiar de categoría">
+            ${p.imagen_url
+              ? `<img src="${p.imagen_url}" alt="${p.nombre}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
+              : `<div style="width:56px;height:56px;border-radius:8px;background:linear-gradient(135deg,#1e3a8a,#2563eb);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">🍽️</div>`
+            }
+            <div class="platillo-info" style="flex:1;min-width:0">
+              <strong>${p.nombre}</strong> - $${parseFloat(p.precio).toFixed(2)}
+              <p style="font-size:12px;color:var(--color-gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.descripcion || ''}</p>
             </div>
             <div class="platillo-acciones">
+              <span style="cursor:grab;font-size:18px;color:#9ca3af;margin-right:4px" title="Arrastra para reordenar">⠿</span>
               <button class="secondary" onclick="editarPlatillo('${p.id}')">✏️ Editar</button>
               <button class="danger" onclick="eliminarPlatillo('${p.id}')">🗑️ Eliminar</button>
             </div>
           </div>
-        `).join('')
-      ).join('');
+        `).join('');
+
+        return `<h4 style="margin:18px 0 8px;padding-bottom:6px;border-bottom:2px solid #f3f4f6">${nombreCat} <span style="font-size:12px;color:#9ca3af;font-weight:normal">(${platillos.length} platillos)</span></h4>${itemsHtml}`;
+      }).join('');
 
       document.getElementById('listaPlatillos').innerHTML = html || '<p>No hay platillos aún</p>';
     }
+
+    let dragSrcId = null;
+    let dragSrcCat = null;
+
+    function dragStart(e) {
+      dragSrcId = e.currentTarget.dataset.id;
+      dragSrcCat = e.currentTarget.dataset.categoria;
+      e.currentTarget.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function dragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.style.borderTop = '3px solid var(--color-primario)';
+    }
+
+    function dragEnd(e) {
+      e.currentTarget.style.opacity = '1';
+      document.querySelectorAll('.platillo-item').forEach(el => {
+        el.style.borderTop = '';
+      });
+    }
+
+    async function dropPlatillo(e) {
+      e.preventDefault();
+      const targetId = e.currentTarget.dataset.id;
+      const targetCat = e.currentTarget.dataset.categoria;
+      e.currentTarget.style.borderTop = '';
+
+      if (!dragSrcId || dragSrcId === targetId) return;
+
+      try {
+        if (dragSrcCat !== targetCat) {
+          await fetch(`${API_URL}/api/admin/platillo/${dragSrcId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+            body: JSON.stringify({ categoria: targetCat })
+          });
+          mostrarMensaje(`✅ Platillo movido a "${targetCat}"`, 'exito');
+        } else {
+          const cat = APP.menu[dragSrcCat] || [];
+          const srcIdx = cat.findIndex(p => p.id === dragSrcId);
+          const tgtIdx = cat.findIndex(p => p.id === targetId);
+          if (srcIdx === -1 || tgtIdx === -1) return;
+
+          [cat[srcIdx], cat[tgtIdx]] = [cat[tgtIdx], cat[srcIdx]];
+
+          await Promise.all(cat.map((p, i) =>
+            fetch(`${API_URL}/api/admin/platillo/${p.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+              body: JSON.stringify({ orden: i })
+            })
+          ));
+        }
+        await cargarDatos();
+      } catch (err) {
+        mostrarMensaje('❌ Error al reordenar: ' + err.message, 'error');
+      }
+    }
+
 
     async function eliminarPlatillo(id) {
       if (!confirm('¿Estás seguro?')) return;

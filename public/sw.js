@@ -29,7 +29,12 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  const { url } = event.request;
+  const { url, method } = event.request;
+
+  // Solo cachear GET/HEAD
+  if (method !== 'GET' && method !== 'HEAD') {
+    return;
+  }
 
   // Stale-while-revalidate para /api/menu y /api/config
   if (url.includes('/api/menu') || url.includes('/api/config')) {

@@ -310,9 +310,9 @@
         </div>
         <div class="form-group">
           <label for="imagenFile">Subir Imagen:</label>
-          <input type="file" id="imagenFile" accept="image/*">
+          <input type="file" id="imagenFile">
         </div>
-        <button onclick="agregarPlatillo()">➕ Agregar Platillo</button>
+        <button id="btnPlatilloSubmit" onclick="agregarPlatillo()">➕ Agregar Platillo</button>
 
         <h3 style="margin-top: 30px;">Platillos Actuales</h3>
         <div id="listaPlatillos"></div>
@@ -331,6 +331,7 @@
     let adminAuth = false;
         let adminPassword = localStorage.getItem('adminPassword') || '';
     let menu = {};  // Guardar menú para editar
+    let editandoPlatilloId = null;
 
     function mostrarMensaje(texto, tipo = 'exito') {
       const div = document.getElementById('mensajeDiv');
@@ -429,6 +430,11 @@
     }
 
     async function agregarPlatillo() {
+      if (editandoPlatilloId) {
+        await guardarCambiosPlatillo(editandoPlatilloId);
+        return;
+      }
+
       const data = {
         categoria: document.getElementById('categoria').value,
         nombre: document.getElementById('nombre').value,
@@ -475,11 +481,7 @@
 
         if (res.ok) {
           mostrarMensaje('✅ Platillo agregado', 'exito');
-          document.getElementById('categoria').value = '';
-          document.getElementById('nombre').value = '';
-          document.getElementById('descripcion').value = '';
-          document.getElementById('precio').value = '';
-          document.getElementById('imagenFile').value = '';
+          limpiarFormularioPlatillo();
           cargarDatos();
         } else {
           const errText = await res.text();
@@ -645,11 +647,12 @@
       document.getElementById('nombre').value = platillo.nombre;
       document.getElementById('descripcion').value = platillo.descripcion || '';
       document.getElementById('precio').value = platillo.precio;
+      document.getElementById('imagenFile').value = '';
+      editandoPlatilloId = id;
 
       // Cambiar botón a "Guardar cambios"
-      const btnAgregar = document.querySelector('[onclick="agregarPlatillo()"]');
+      const btnAgregar = document.getElementById('btnPlatilloSubmit');
       btnAgregar.textContent = '💾 Guardar Cambios';
-      btnAgregar.onclick = () => guardarCambiosPlatillo(id);
 
       // Scroll a formulario
       document.getElementById('platillos').scrollIntoView({ behavior: 'smooth' });
@@ -681,16 +684,12 @@
 
         if (res.ok) {
           mostrarMensaje('✅ Platillo actualizado', 'exito');
-          document.getElementById('categoria').value = '';
-          document.getElementById('nombre').value = '';
-          document.getElementById('descripcion').value = '';
-          document.getElementById('precio').value = '';
-          document.getElementById('imagenFile').value = '';
+          limpiarFormularioPlatillo();
           
           // Restaurar botón
-          const btnAgregar = document.querySelector('[onclick*="Guardar"]') || document.querySelector('button');
+          const btnAgregar = document.getElementById('btnPlatilloSubmit');
           btnAgregar.textContent = '➕ Agregar Platillo';
-          btnAgregar.onclick = () => agregarPlatillo();
+          editandoPlatilloId = null;
           
           cargarDatos();
         } else {
@@ -701,6 +700,14 @@
         mostrarMensaje(`Error: ${error.message}`, 'error');
         console.error(error);
       }
+    }
+
+    function limpiarFormularioPlatillo() {
+      document.getElementById('categoria').value = '';
+      document.getElementById('nombre').value = '';
+      document.getElementById('descripcion').value = '';
+      document.getElementById('precio').value = '';
+      document.getElementById('imagenFile').value = '';
     }
 
     // Cargar datos si ya estás autenticado

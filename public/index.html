@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Menú Rápido</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#f97316">
+  <style>
+    :root {
+      --color-primario: #f97316;
+      --color-fondo: #ffffff;
+      --color-texto: #1f2937;
+      --color-gris: #6b7280;
+      --color-gris-claro: #f3f4f6;
+      --color-verde-neon: #10b981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--color-fondo);
+      color: var(--color-texto);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* BANNER DE CONFIGURACIÓN */
+    #bannerConfig {
+      display: none;
+      background: #fbbf24;
+      padding: 12px 16px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #bannerConfig.visible {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    #btnConfigurar {
+      background: var(--color-primario);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* HEADER FIJO */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--color-fondo);
+      border-bottom: 1px solid var(--color-gris-claro);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      gap: 12px;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .logo-imagen {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--color-gris-claro);
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .header-titulo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-primario);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .header-menu-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-texto);
+    }
+
+    .header-instruccion {
+      background: #1f2937;
+      color: var(--color-verde-neon);
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      border-radius: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* CONTENIDO PRINCIPAL */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 60px;
+    }
+
+    .contenedor {
+      max-width: 100%;
+      padding: 0;
+    }
+
+    @media (min-width: 768px) {
+      .contenedor {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+    }
+
+    /* SECCIÓN ESPECIAL */
+    .seccion-especial {
+      padding: 16px 0;
+      margin-bottom: 0;
+    }
+
+    .seccion-titulo {
+      font-size: 16px;
+      font-weight: 700;
+      padding: 16px 16px 8px;
+      margin: 0;
+      color: var(--color-texto);
+    }
+
+    .seccion-separador {
+      height: 2px;
+      background: var(--color-primario);
+      margin: 8px 16px 0;
+    }
+
+    /* CARRUSEL */
+    .carrusel {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      gap: 12px;
+      padding: 12px 16px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .carrusel::-webkit-scrollbar {
+      display: none;
+    }
+
+    .carrusel {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    /* TARJETA */
+    .tarjeta {
+      scroll-snap-align: start;
+      flex-shrink: 0;
+      width: 220px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .tarjeta:active {
+      transform: scale(0.98);
+    }
+
+    .tarjeta.resaltada {
+      border-color: var(--color-primario);
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1), 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .tarjeta-imagen {
+      width: 220px;
+      height: 180px;
+      object-fit: cover;
+      background: var(--color-gris-claro);
+      display: block;
+    }
+
+    .tarjeta-contenido {
+      padding: 12px;
+      position: relative;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tarjeta-nombre {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--color-texto);
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    .tarjeta-desc {
+      font-size: 12px;
+      color: var(--color-gris);
+      margin-bottom: 8px;
+      flex: 1;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .tarjeta-precio {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-primario);
+    }
+
+    .tarjeta-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--color-primario);
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+    }
+
+    .tarjeta-badge.visible {
+      display: flex;
+    }
+
+    /* SECCIONES */
+    .seccion {
+      margin-bottom: 20px;
+    }
+
+    .seccion:last-child {
+      margin-bottom: 0;
+    }
+
+    /* FOOTER */
+    footer {
+      background: var(--color-gris-claro);
+      padding: 20px 16px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--color-gris);
+      border-top: 1px solid #e5e7eb;
+      margin-top: 20px;
+    }
+
+    .footer-texto {
+      margin-bottom: 8px;
+    }
+
+    .footer-whatsapp {
+      color: var(--color-primario);
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 8px;
+      display: inline-block;
+    }
+
+    .footer-disclaimer {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 8px;
+    }
+
+    /* RESPONSIVE */
+    @media (min-width: 768px) {
+      .tarjeta {
+        width: 260px;
+      }
+
+      .tarjeta-imagen {
+        width: 260px;
+        height: 200px;
+      }
+
+      .header-instruccion {
+        font-size: 13px;
+        padding: 10px 20px;
+      }
+
+      .seccion-titulo {
+        font-size: 18px;
+        padding: 20px 0 12px;
+      }
+
+      .seccion-separador {
+        margin: 12px 0 0;
+      }
+
+      .carrusel {
+        padding: 16px 0;
+      }
+    }
+
+    /* ANIMACIÓN PARA VIBRACIÓN */
+    @keyframes pulse-small {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .tarjeta.vibra {
+      animation: pulse-small 0.15s ease-in-out;
+    }
+
+    /* LOADING */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+      color: var(--color-gris);
+    }
+
+    .error-mensaje {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 16px;
+      margin: 16px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <!-- BANNER DE CONFIGURACIÓN -->
+  <div id="bannerConfig">
+    <span>👋 Para pedidos más rápidos, guarda tu nombre y dirección</span>
+    <button id="btnConfigurar">Configurar ahora</button>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-top">
+      <div class="header-logo">
+        <div class="logo-imagen" id="logoImagen">🍽️</div>
+        <div class="header-titulo" id="nombreTienda">Menú Rápido</div>
+      </div>
+      <button class="header-menu-btn" id="btnMenu">☰</button>
+    </div>
+    <div class="header-instruccion">
+      👆 Haz 3 taps sobre tu platillo para ordenar al instante
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main>
+    <div class="contenedor" id="contenidoMenu">
+      <div class="loading">Cargando menú...</div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer id="footer"></footer>
+
+  <script>
+    // ============ INICIALIZACIÓN ============
+    const APP = {
+      sessionId: null,
+      config: {},
+      menu: {},
+      clienteData: {},
+      currentTappedCard: null,
+
+      async init() {
+        // Generar o recuperar session_id
+        this.sessionId = this.getOrCreateSessionId();
+
+        // Cargar config y menú en paralelo
+        await Promise.all([
+          this.loadConfig(),
+          this.loadMenu(),
+        ]);
+
+        // Aplicar color primario
+        if (this.config.color_primario) {
+          document.documentElement.style.setProperty('--color-primario', this.config.color_primario);
+        }
+
+        // Actualizar UI
+        this.renderHeader();
+        this.renderMenu();
+        this.renderFooter();
+
+        // Cargar datos del cliente
+        await this.loadClienteData();
+        this.checkAndShowBanner();
+
+        // Event listeners
+        this.setupEventListeners();
+      },
+
+      getOrCreateSessionId() {
+        let sid = localStorage.getItem('mr_session_id');
+        if (!sid) {
+          sid = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          localStorage.setItem('mr_session_id', sid);
+        }
+        return sid;
+      },
+
+      async loadConfig() {
+        try {
+          const res = await fetch('/api/config');
+          this.config = await res.json();
+        } catch (e) {
+          console.error('Error cargando config:', e);
+          this.config = {};
+        }
+      },
+
+      async loadMenu() {
+        try {
+          const res = await fetch('/api/menu');
+          this.menu = await res.json();
+        } catch (e) {
+          console.error('Error cargando menú:', e);
+          document.getElementById('contenidoMenu').innerHTML = '<div class="error-mensaje">Error al cargar el menú. Intenta más tarde.</div>';
+        }
+      },
+
+      async loadClienteData() {
+        try {
+          const res = await fetch(`/api/clientes/${this.sessionId}`);
+          if (res.ok) {
+            this.clienteData = await res.json();
+            localStorage.setItem('mr_nombre', this.clienteData.nombre || '');
+            localStorage.setItem('mr_direccion', this.clienteData.direccion || '');
+          }
+        } catch (e) {
+          console.error('Error cargando datos cliente:', e);
+        }
+      },
+
+      checkAndShowBanner() {
+        const nombre = localStorage.getItem('mr_nombre') || '';
+        const direccion = localStorage.getItem('mr_direccion') || '';
+
+        if (!nombre || !direccion) {
+          document.getElementById('bannerConfig').classList.add('visible');
+        }
+      },
+
+      renderHeader() {
+        const nombreTienda = this.config.nombre_tienda || 'Menú Rápido';
+        document.getElementById('nombreTienda').textContent = nombreTienda;
+
+        if (this.config.logo_url) {
+          const img = document.createElement('img');
+          img.src = this.config.logo_url;
+          img.className = 'logo-imagen';
+          img.alt = nombreTienda;
+          document.querySelector('.header-logo').replaceChild(img, document.getElementById('logoImagen'));
+        }
+      },
+
+      renderMenu() {
+        const container = document.getElementById('contenidoMenu');
+        container.innerHTML = '';
+
+        // Sección especial
+        if (this.menu.especial && this.menu.especial.length > 0) {
+          const secEspecial = this.createSeccionEspecial(this.menu.especial);
+          container.appendChild(secEspecial);
+        }
+
+        // Otras secciones
+        for (const [categoria, platillos] of Object.entries(this.menu)) {
+          if (categoria !== 'especial') {
+            const sec = this.createSeccion(categoria, platillos);
+            container.appendChild(sec);
+          }
+        }
+      },
+
+      createSeccionEspecial(platillos) {
+        const sec = document.createElement('div');
+        sec.className = 'seccion seccion-especial';
+
+        const titulo = document.createElement('h2');
+        titulo.className = 'seccion-titulo';
+        titulo.textContent = '⭐ Especial(es) del día';
+        sec.appendChild(titulo);
+
+        const separador = document.createElement('div');
+        separador.className = 'seccion-separador';
+        sec.appendChild(separador);
+
+        const carrusel = document.createElement('div');
+        carrusel.className = 'carrusel';
+
+        platillos.forEach(p => {
+          const tarjeta = this.createTarjeta(p);
+          carrusel.appendChild(tarjeta);
+        });
+
+        sec.appendChild(carrusel);
+        return sec;
+      },
+
+      createSeccion(categoria, platillos) {
+        const sec = document.createElement('div');
+        sec.className = 'seccion';
+
+        const titulo = document.createElement('h2');
+        titulo.className = 'seccion-titulo';
+        titulo.textContent = categoria.toUpperCase();
+        sec.appendChild(titulo);
+
+        const separador = document.createElement('div');
+        separador.className = 'seccion-separador';
+        sec.appendChild(separador);
+
+        const carrusel = document.createElement('div');
+        carrusel.className = 'carrusel';
+
+        platillos.forEach(p => {
+          const tarjeta = this.createTarjeta(p);
+          carrusel.appendChild(tarjeta);
+        });
+
+        sec.appendChild(carrusel);
+        return sec;
+      },
+
+      createTarjeta(platillo) {
+        const tarjeta = document.createElement('div');
+        tarjeta.className = 'tarjeta';
+        tarjeta.dataset.platilloId = platillo.id;
+        tarjeta.dataset.nombre = platillo.nombre;
+        tarjeta.dataset.precio = platillo.precio;
+        tarjeta.dataset.descripcion = platillo.descripcion || '';
+        tarjeta.dataset.taps = '0';
+
+        const img = document.createElement('img');
+        img.src = platillo.imagen_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 180"%3E%3Crect fill="%23f3f4f6"/%3E%3C/svg%3E';
+        img.className = 'tarjeta-imagen';
+        img.alt = platillo.nombre;
+        tarjeta.appendChild(img);
+
+        const contenido = document.createElement('div');
+        contenido.className = 'tarjeta-contenido';
+
+        const nombre = document.createElement('div');
+        nombre.className = 'tarjeta-nombre';
+        nombre.textContent = platillo.nombre;
+        contenido.appendChild(nombre);
+
+        const desc = document.createElement('div');
+        desc.className = 'tarjeta-desc';
+        desc.textContent = platillo.descripcion || '';
+        contenido.appendChild(desc);
+
+        const precio = document.createElement('div');
+        precio.className = 'tarjeta-precio';
+        precio.textContent = '$' + parseFloat(platillo.precio).toFixed(2);
+        contenido.appendChild(precio);
+
+        tarjeta.appendChild(contenido);
+
+        // Badge de taps
+        const badge = document.createElement('div');
+        badge.className = 'tarjeta-badge';
+        badge.textContent = '1/3';
+        tarjeta.appendChild(badge);
+
+        // Event listener
+        tarjeta.addEventListener('click', () => this.handleTarjetaTap(tarjeta));
+
+        return tarjeta;
+      },
+
+      handleTarjetaTap(tarjeta) {
+        // Si hay otra tarjeta resaltada, resetearla
+        if (this.currentTappedCard && this.currentTappedCard !== tarjeta) {
+          this.resetTarjeta(this.currentTappedCard);
+        }
+
+        let taps = parseInt(tarjeta.dataset.taps) || 0;
+        taps++;
+        tarjeta.dataset.taps = taps;
+
+        const badge = tarjeta.querySelector('.tarjeta-badge');
+
+        if (taps === 1) {
+          tarjeta.classList.add('resaltada');
+          badge.classList.add('visible');
+          badge.textContent = '1/3';
+          this.currentTappedCard = tarjeta;
+        } else if (taps === 2) {
+          badge.textContent = '2/3';
+          // Vibración
+          if (navigator.vibrate) {
+            navigator.vibrate(50);
+          }
+          // Animación
+          tarjeta.classList.add('vibra');
+          setTimeout(() => tarjeta.classList.remove('vibra'), 150);
+        } else if (taps === 3) {
+          badge.textContent = '✓ Abriendo...';
+          badge.style.fontSize = '10px';
+          setTimeout(() => {
+            this.enviarPedidoWhatsApp(tarjeta);
+            this.resetAllTarjetas();
+            this.currentTappedCard = null;
+          }, 400);
+        }
+      },
+
+      enviarPedidoWhatsApp(tarjeta) {
+        const nombre = tarjeta.dataset.nombre;
+        const precio = tarjeta.dataset.precio;
+        const descripcion = tarjeta.dataset.descripcion;
+        const nombreCliente = localStorage.getItem('mr_nombre') || 'No registrado';
+        const direccion = localStorage.getItem('mr_direccion') || 'No especificada';
+
+        const mensaje = `🛵 *PEDIDO EXPRESS*
+
+📦 Platillo: ${nombre}
+💰 Precio: $${parseFloat(precio).toFixed(2)} MXN
+📝 Descripción: ${descripcion}
+
+👤 Nombre: ${nombreCliente}
+📍 Entrega: ${direccion}
+
+¿Está disponible?`;
+
+        const numeroWhatsApp = this.config.whatsapp_number || '521234567890';
+        const mensajeEncoded = encodeURIComponent(mensaje);
+        const url = `https://wa.me/${numeroWhatsApp}?text=${mensajeEncoded}`;
+
+        window.open(url, '_blank');
+      },
+
+      resetTarjeta(tarjeta) {
+        tarjeta.dataset.taps = '0';
+        tarjeta.classList.remove('resaltada');
+        const badge = tarjeta.querySelector('.tarjeta-badge');
+        badge.classList.remove('visible');
+        badge.textContent = '1/3';
+        badge.style.fontSize = '12px';
+      },
+
+      resetAllTarjetas() {
+        document.querySelectorAll('.tarjeta').forEach(t => this.resetTarjeta(t));
+      },
+
+      renderFooter() {
+        const footer = document.getElementById('footer');
+        footer.innerHTML = '';
+
+        if (this.config.pie_pagina) {
+          const texto = document.createElement('div');
+          texto.className = 'footer-texto';
+          texto.textContent = this.config.pie_pagina;
+          footer.appendChild(texto);
+        }
+
+        const numeroWhatsApp = this.config.whatsapp_number || '521234567890';
+        const wa = document.createElement('a');
+        wa.className = 'footer-whatsapp';
+        wa.href = `https://wa.me/${numeroWhatsApp}`;
+        wa.target = '_blank';
+        wa.textContent = `📞 ${numeroWhatsApp}`;
+        footer.appendChild(wa);
+
+        const disclaimer = document.createElement('div');
+        disclaimer.className = 'footer-disclaimer';
+        disclaimer.textContent = 'Los precios y disponibilidad pueden variar. Confirma tu pedido antes de proceder.';
+        footer.appendChild(disclaimer);
+      },
+
+      setupEventListeners() {
+        document.getElementById('btnConfigurar').addEventListener('click', () => {
+          window.location.href = '/registro.html';
+        });
+
+        document.getElementById('btnMenu').addEventListener('click', () => {
+          window.location.href = '/registro.html';
+        });
+      }
+    };
+
+    // Iniciar aplicación
+    document.addEventListener('DOMContentLoaded', () => {
+      APP.init();
+    });
+
+    // Registrar Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

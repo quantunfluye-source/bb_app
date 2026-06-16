@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Información - Menú Rápido</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#f97316">
+  <style>
+    :root {
+      --color-primario: #f97316;
+      --color-fondo: #ffffff;
+      --color-texto: #1f2937;
+      --color-gris: #6b7280;
+      --color-gris-claro: #f3f4f6;
+      --color-gris-muy-claro: #fafafa;
+      --color-dorado: #c9a84c;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--color-fondo);
+      color: var(--color-texto);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      border-bottom: 1px solid var(--color-gris-claro);
+      background: var(--color-fondo);
+      flex-shrink: 0;
+    }
+
+    .header-back {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-texto);
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-texto);
+      flex: 1;
+    }
+
+    /* CONTENIDO PRINCIPAL */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .contenedor {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    /* SECCIÓN FOTO */
+    .seccion-foto {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    .marco-foto {
+      width: 160px;
+      height: 160px;
+      border: 4px solid var(--color-dorado);
+      border-radius: 12px;
+      cursor: pointer;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(201, 168, 76, 0.15);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .marco-foto:hover {
+      box-shadow: 0 6px 16px rgba(201, 168, 76, 0.25);
+    }
+
+    .marco-foto:active {
+      transform: scale(0.98);
+    }
+
+    .marco-foto img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .marco-foto-placeholder {
+      color: var(--color-gris);
+      font-size: 12px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .input-foto-hidden {
+      display: none;
+    }
+
+    /* FORMULARIO */
+    .form-group {
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-texto);
+      margin-bottom: 8px;
+    }
+
+    .form-label .required {
+      color: var(--color-primario);
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--color-gris-muy-claro);
+      border: none;
+      border-radius: 24px;
+      font-size: 14px;
+      color: var(--color-texto);
+      outline: none;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .form-input::placeholder {
+      color: var(--color-gris);
+    }
+
+    .form-input:focus {
+      background: white;
+      box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+    }
+
+    .form-icon {
+      position: absolute;
+      right: 16px;
+      font-size: 18px;
+      color: var(--color-gris);
+      pointer-events: none;
+    }
+
+    /* BOTÓN GUARDAR */
+    .btn-guardar {
+      width: 100%;
+      padding: 16px 20px;
+      background: var(--color-primario);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .btn-guardar:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+
+    .btn-guardar:active {
+      transform: translateY(0);
+    }
+
+    .btn-guardar:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* MENSAJES */
+    .mensaje {
+      display: none;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      text-align: center;
+      animation: slideDown 0.3s ease;
+    }
+
+    .mensaje.visible {
+      display: block;
+    }
+
+    .mensaje.exito {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+
+    .mensaje.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* RESPONSIVE */
+    @media (min-width: 768px) {
+      main {
+        padding: 40px 20px;
+      }
+
+      .header-title {
+        font-size: 18px;
+      }
+
+      .form-input {
+        font-size: 15px;
+        padding: 16px 18px;
+      }
+
+      .btn-guardar {
+        font-size: 17px;
+        padding: 18px 24px;
+      }
+    }
+
+    /* LOADING STATE */
+    .btn-guardar.loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <button class="header-back" id="btnVolver">←</button>
+    <h1 class="header-title">Mi información para pedidos express</h1>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main>
+    <div class="contenedor">
+      <!-- MENSAJE DE ESTADO -->
+      <div id="mensaje" class="mensaje"></div>
+
+      <!-- SECCIÓN FOTO -->
+      <div class="seccion-foto">
+        <div class="marco-foto" id="marcoFoto">
+          <div class="marco-foto-placeholder">📷 opcional</div>
+        </div>
+        <input type="file" id="inputFoto" class="input-foto-hidden" accept="image/*">
+      </div>
+
+      <!-- FORMULARIO -->
+      <form id="formulario">
+        <div class="form-group">
+          <label class="form-label">
+            Nombre <span class="required">*</span>
+          </label>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="nombre"
+              class="form-input"
+              placeholder="Tu nombre"
+              required
+            >
+            <span class="form-icon">✏️</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            Dirección o lugar de entrega <span class="required">*</span>
+          </label>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="direccion"
+              class="form-input"
+              placeholder="Ej: Oficina piso 3, Calle Morelos 45"
+              required
+            >
+            <span class="form-icon">✏️</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Número de teléfono</label>
+          <div class="input-wrapper">
+            <input
+              type="tel"
+              id="telefono"
+              class="form-input"
+              placeholder="Solo si quieres que te llamen"
+            >
+            <span class="form-icon">✏️</span>
+          </div>
+        </div>
+
+        <button type="button" class="btn-guardar" id="btnGuardar">
+          Guardar mi información
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    // ============ REGISTRO APP ============
+    const REGISTRO = {
+      sessionId: null,
+      config: {},
+      fotoUrl: null,
+      isSubmitting: false,
+
+      async init() {
+        // Generar o recuperar session_id
+        this.sessionId = this.getOrCreateSessionId();
+
+        // Cargar config
+        await this.loadConfig();
+
+        // Aplicar color primario
+        if (this.config.color_primario) {
+          document.documentElement.style.setProperty('--color-primario', this.config.color_primario);
+        }
+
+        // Cargar datos del cliente si existen
+        await this.loadClienteData();
+
+        // Setup event listeners
+        this.setupEventListeners();
+      },
+
+      getOrCreateSessionId() {
+        let sid = localStorage.getItem('mr_session_id');
+        if (!sid) {
+          sid = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          localStorage.setItem('mr_session_id', sid);
+        }
+        return sid;
+      },
+
+      async loadConfig() {
+        try {
+          const res = await fetch('/api/config');
+          this.config = await res.json();
+        } catch (e) {
+          console.error('Error cargando config:', e);
+        }
+      },
+
+      async loadClienteData() {
+        try {
+          const res = await fetch(`/api/clientes/${this.sessionId}`);
+          if (res.ok) {
+            const cliente = await res.json();
+            document.getElementById('nombre').value = cliente.nombre || '';
+            document.getElementById('direccion').value = cliente.direccion || '';
+            document.getElementById('telefono').value = cliente.telefono || '';
+
+            if (cliente.foto_url) {
+              this.fotoUrl = cliente.foto_url;
+              this.mostrarFoto(cliente.foto_url);
+            }
+
+            // Guardar en localStorage para WhatsApp
+            localStorage.setItem('mr_nombre', cliente.nombre || '');
+            localStorage.setItem('mr_direccion', cliente.direccion || '');
+          }
+        } catch (e) {
+          console.error('Error cargando datos cliente:', e);
+        }
+      },
+
+      setupEventListeners() {
+        document.getElementById('btnVolver').addEventListener('click', () => {
+          window.location.href = '/index.html';
+        });
+
+        document.getElementById('marcoFoto').addEventListener('click', () => {
+          document.getElementById('inputFoto').click();
+        });
+
+        document.getElementById('inputFoto').addEventListener('change', (e) => {
+          this.handleFotoChange(e);
+        });
+
+        document.getElementById('btnGuardar').addEventListener('click', (e) => {
+          e.preventDefault();
+          this.guardarInformacion();
+        });
+      },
+
+      handleFotoChange(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Preview
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          this.mostrarFoto(event.target.result);
+        };
+        reader.readAsDataURL(file);
+
+        // Subir a servidor
+        this.subirFoto(file);
+      },
+
+      mostrarFoto(src) {
+        const marco = document.getElementById('marcoFoto');
+        marco.innerHTML = `<img src="${src}" alt="Foto">`;
+      },
+
+      async subirFoto(file) {
+        try {
+          const formData = new FormData();
+          formData.append('imagen', file);
+
+          // Obtener contraseña admin del localStorage si existe
+          const adminPassword = localStorage.getItem('adminPassword');
+          const headers = adminPassword ? { 'X-Admin-Password': adminPassword } : {};
+
+          const res = await fetch('/api/upload/imagen', {
+            method: 'POST',
+            headers,
+            body: formData
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            this.fotoUrl = data.url;
+            this.mostrarMensaje('Foto guardada correctamente', 'exito');
+          } else {
+            this.mostrarMensaje('Error al subir la foto', 'error');
+          }
+        } catch (e) {
+          console.error('Error subiendo foto:', e);
+          this.mostrarMensaje('Error al subir la foto', 'error');
+        }
+      },
+
+      async guardarInformacion() {
+        // Validar campos requeridos
+        const nombre = document.getElementById('nombre').value.trim();
+        const direccion = document.getElementById('direccion').value.trim();
+        const telefono = document.getElementById('telefono').value.trim();
+
+        if (!nombre || !direccion) {
+          this.mostrarMensaje('Por favor completa nombre y dirección', 'error');
+          return;
+        }
+
+        if (this.isSubmitting) return;
+        this.isSubmitting = true;
+
+        const btnGuardar = document.getElementById('btnGuardar');
+        btnGuardar.classList.add('loading');
+        btnGuardar.disabled = true;
+
+        try {
+          const payload = {
+            session_id: this.sessionId,
+            nombre,
+            direccion,
+            telefono: telefono || null,
+            foto_url: this.fotoUrl || null
+          };
+
+          const res = await fetch('/api/clientes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (res.ok) {
+            // Guardar en localStorage para WhatsApp
+            localStorage.setItem('mr_nombre', nombre);
+            localStorage.setItem('mr_direccion', direccion);
+
+            this.mostrarMensaje('✅ ¡Listo! Tus próximos pedidos serán más rápidos', 'exito');
+
+            // Regresar a index.html después de 1.5 segundos
+            setTimeout(() => {
+              window.location.href = '/index.html';
+            }, 1500);
+          } else {
+            const err = await res.json();
+            this.mostrarMensaje('❌ Error al guardar. Intenta de nuevo.', 'error');
+          }
+        } catch (e) {
+          console.error('Error guardando información:', e);
+          this.mostrarMensaje('❌ Error al guardar. Intenta de nuevo.', 'error');
+        } finally {
+          this.isSubmitting = false;
+          btnGuardar.classList.remove('loading');
+          btnGuardar.disabled = false;
+        }
+      },
+
+      mostrarMensaje(texto, tipo) {
+        const mensajeEl = document.getElementById('mensaje');
+        mensajeEl.textContent = texto;
+        mensajeEl.className = `mensaje visible ${tipo}`;
+
+        if (tipo === 'error') {
+          setTimeout(() => {
+            mensajeEl.classList.remove('visible');
+          }, 4000);
+        }
+      }
+    };
+
+    // Iniciar aplicación
+    document.addEventListener('DOMContentLoaded', () => {
+      REGISTRO.init();
+    });
+
+    // Registrar Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

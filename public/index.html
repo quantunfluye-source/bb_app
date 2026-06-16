@@ -696,7 +696,7 @@
 
 ¿Está disponible?`;
 
-        const numeroWhatsApp = this.config.whatsapp_number || '521234567890';
+        const numeroWhatsApp = (this.config.telefono || this.config.whatsapp_number || '').replace(/\D/g, '');
         const mensajeEncoded = encodeURIComponent(mensaje);
         const url = `https://wa.me/${numeroWhatsApp}?text=${mensajeEncoded}`;
 
@@ -727,12 +727,12 @@
           footer.appendChild(texto);
         }
 
-        const numeroWhatsApp = this.config.whatsapp_number || '521234567890';
+        const numeroWhatsApp = (this.config.telefono || this.config.whatsapp_number || '').replace(/\D/g, '');
         const wa = document.createElement('a');
         wa.className = 'footer-whatsapp';
-        wa.href = `https://wa.me/${numeroWhatsApp}`;
+        wa.href = numeroWhatsApp ? `https://wa.me/${numeroWhatsApp}` : '#';
         wa.target = '_blank';
-        wa.textContent = `📞 ${numeroWhatsApp}`;
+        wa.textContent = numeroWhatsApp ? ` ${numeroWhatsApp}` : ' Configura tu número en el panel';
         footer.appendChild(wa);
 
         const disclaimer = document.createElement('div');

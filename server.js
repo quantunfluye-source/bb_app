@@ -11,6 +11,26 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+const IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'image/bmp',
+  'image/tiff',
+  'image/heic',
+  'image/heif',
+  'image/svg+xml',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+]);
+
+const sanitizeFileName = (name) =>
+  name
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 
 // Inicializar Supabase
 const supabase = createClient(
@@ -26,7 +46,20 @@ app.use(express.static(path.join(__dirname, 'uploads')));
 // Configurar multer
 const upload = multer({
   dest: path.join(__dirname, 'uploads'),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const mimetype = (file.mimetype || '').toLowerCase();
+    const isImageMime = mimetype.startsWith('image/');
+    const isKnownImageMime = IMAGE_MIME_TYPES.has(mimetype);
+    const hasImageExtension = /\.(jpe?g|png|gif|webp|avif|bmp|tiff?|heic|heif|svg|ico)$/i.test(file.originalname || '');
+
+    if (isImageMime || isKnownImageMime || hasImageExtension) {
+      cb(null, true);
+      return;
+    }
+
+    cb(null, false);
+  }
 });
 
 // Middleware de autenticación
@@ -277,7 +310,10 @@ app.post('/api/upload/imagen', requireAdminAuth, upload.single('imagen'), async 
     console.log(`📸 Subiendo imagen: ${req.file.originalname}`);
     
     const fileBuffer = fs.readFileSync(req.file.path);
-    const fileName = `${Date.now()}-${req.file.originalname}`;
+    const originalExt = path.extname(req.file.originalname || '').toLowerCase();
+    const safeBaseName = sanitizeFileName(path.basename(req.file.originalname || 'imagen', originalExt)) || 'imagen';
+    const safeExt = originalExt && originalExt.length <= 8 ? originalExt : '';
+    const fileName = `${Date.now()}-${safeBaseName}${safeExt}`;
     
     const { data, error } = await supabase
       .storage

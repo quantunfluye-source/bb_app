@@ -310,7 +310,7 @@
         </div>
         <div class="form-group">
           <label for="imagenFile">Subir Imagen:</label>
-          <input type="file" id="imagenFile" accept="image/*">
+          <input type="file" id="imagenFile" accept="image/*,.heic,.heif,.webp,.avif,.bmp,.gif,.tif,.tiff,.ico,.svg">
         </div>
         <button onclick="agregarPlatillo()">➕ Agregar Platillo</button>
 
@@ -510,8 +510,8 @@
                ondragend="dragEnd(event)"
                title="Arrastra para reordenar o cambiar de categoría">
             ${p.imagen_url
-              ? `<img src="${p.imagen_url}" alt="${p.nombre}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
-              : `<div style="width:56px;height:56px;border-radius:8px;background:linear-gradient(135deg,#1e3a8a,#2563eb);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">🍽️</div>`
+              ? `<img src="${p.imagen_url}" alt="${p.nombre}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
+              : `<div style="width:64px;height:64px;border-radius:8px;background:linear-gradient(135deg,#1e3a8a,#2563eb);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">🍽️</div>`
             }
             <div class="platillo-info" style="flex:1;min-width:0">
               <strong>${p.nombre}</strong> - $${parseFloat(p.precio).toFixed(2)}

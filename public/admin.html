@@ -524,10 +524,11 @@
     }
 
     async function crearCategoria(nombreInput = null) {
-      const nombre = nombreInput || document.getElementById('nuevaCatNombre').value;
+      // Si se llama desde onclick="crearCategoria()", el primer arg puede ser el Event
+      const realNombre = (typeof nombreInput === 'string') ? nombreInput : document.getElementById('nuevaCatNombre').value;
       const visibleVacia = document.getElementById('catVisibleVacia').checked;
 
-      if (!nombre) {
+      if (!realNombre || !realNombre.trim()) {
         mostrarMensaje('Escribe un nombre para la categoría', 'error');
         return;
       }
@@ -536,7 +537,7 @@
         const res = await fetchAdmin(`${API_URL}/api/admin/categorias`, {
           method: 'POST',
           body: JSON.stringify({ 
-            nombre, 
+            nombre: realNombre.trim(), 
             orden: categorias.length, 
             visible_si_vacia: visibleVacia 
           })
@@ -556,6 +557,9 @@
           if (document.getElementById('categoriasTab').classList.contains('active')) {
             renderCategoriasAdmin();
           }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          mostrarMensaje(`❌ Error al crear: ${errData.error || 'Nombre duplicado o inválido'}`, 'error');
         }
       } catch (error) {
         const msg = analizarError(error);

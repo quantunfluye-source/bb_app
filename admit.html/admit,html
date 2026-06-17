@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Control</title>
+  <style>
+    :root {
+      --color-primario: #f97316;
+      --color-fondo: #ffffff;
+      --color-texto: #1f2937;
+      --color-gris: #6b7280;
+      --color-gris-claro: #f3f4f6;
+      --color-verde: #22c55e;
+      --color-verde-oscuro: #16a34a;
+      --color-rojo: #ef4444;
+      --color-azul-claro: #f0f9ff;
+      --color-borde-edicion: #3b82f6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--color-gris-claro);
+      color: var(--color-texto);
+      min-height: 100vh;
+    }
+
+    /* ===== LOGIN ===== */
+    #pantallaLogin {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      text-align: center;
+    }
+
+    .login-card .logo-emoji { font-size: 48px; margin-bottom: 12px; }
+    .login-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .login-card p { color: var(--color-gris); font-size: 14px; margin-bottom: 28px; }
+
+    .login-card input[type="password"] {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid var(--color-gris-claro);
+      border-radius: 10px;
+      font-size: 16px;
+      margin-bottom: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .login-card input[type="password"]:focus { border-color: var(--color-primario); }
+
+    #errorLogin {
+      color: var(--color-rojo);
+      font-size: 13px;
+      min-height: 18px;
+      margin-bottom: 8px;
+    }
+
+    /* ===== PANEL PRINCIPAL ===== */
+    #panelPrincipal { display: none; }
+
+    /* TOPBAR */
+    .topbar {
+      background: white;
+      border-bottom: 1px solid var(--color-gris-claro);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .topbar-logo-wrap {
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .topbar-logo-wrap img, .topbar-logo-wrap .logo-placeholder {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: var(--color-gris-claro);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      border: 2px dashed #d1d5db;
+    }
+    .topbar-logo-wrap .logo-placeholder { border: 2px dashed #d1d5db; }
+    .logo-edit-badge {
+      position: absolute;
+      bottom: -4px;
+      right: -4px;
+      background: var(--color-primario);
+      color: white;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .topbar-nombre {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    #nombreTienda {
+      font-size: 16px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #inputNombreTienda {
+      display: none;
+      font-size: 15px;
+      font-weight: 700;
+      border: 2px solid var(--color-borde-edicion);
+      border-radius: 8px;
+      padding: 4px 10px;
+      background: var(--color-azul-claro);
+      outline: none;
+      width: 100%;
+    }
+    .btn-lapiz {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      color: var(--color-gris);
+      flex-shrink: 0;
+    }
+    #btnGuardarNombre {
+      display: none;
+      background: var(--color-verde);
+      color: white;
+      border: none;
+      border-radius: 7px;
+      padding: 5px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .btn-salir {
+      background: var(--color-gris-claro);
+      color: var(--color-texto);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* CONTENIDO */
+    .contenido { padding: 16px; max-width: 700px; margin: 0 auto; }
+
+    /* CARDS DE SECCIÓN */
+    .seccion-card {
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .seccion-card h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-gris);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 16px;
+    }
+
+    /* CAMPO CON EDITAR/GUARDAR */
+    .campo-editable {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .campo-editable label {
+      font-size: 14px;
+      color: var(--color-gris);
+      width: 100px;
+      flex-shrink: 0;
+    }
+    .campo-editable .valor-texto {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .campo-editable input {
+      flex: 1;
+      display: none;
+      padding: 8px 12px;
+      border: 2px solid var(--color-borde-edicion);
+      border-radius: 8px;
+      background: var(--color-azul-claro);
+      font-size: 15px;
+      outline: none;
+    }
+
+    /* BOTONES PRIMARIOS */
+    .btn-verde {
+      background: var(--color-verde);
+      color: white;
+      border: none;
+      border-radius: 7px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-verde-oscuro {
+      background: var(--color-verde-oscuro);
+      color: white;
+      border: none;
+      border-radius: 7px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-rojo {
+      background: var(--color-rojo);
+      color: white;
+      border: none;
+      border-radius: 7px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-primario {
+      background: var(--color-primario);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn-gris {
+      background: var(--color-gris-claro);
+      color: var(--color-texto);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* COLOR PICKER */
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    input[type="color"] {
+      width: 48px;
+      height: 40px;
+      border: 2px solid var(--color-gris-claro);
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 2px;
+      background: white;
+    }
+    .color-preview {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 2px solid var(--color-gris-claro);
+    }
+
+    /* SECCIÓN DE CATEGORÍA EN MENÚ */
+    .categoria-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--color-gris-claro);
+    }
+    .categoria-header h3 {
+      font-size: 17px;
+      font-weight: 800;
+      flex: 1;
+    }
+    .paginacion-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-gris-claro);
+      border: 2px solid #d1d5db;
+    }
+    .dot.activo { background: var(--color-primario); border-color: var(--color-primario); }
+    .dot-count {
+      font-size: 12px;
+      color: var(--color-gris);
+      margin-left: 4px;
+    }
+    .btn-add-platillo {
+      background: var(--color-primario);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    /* PLATILLO CARD EN ADMIN */
+    .platillo-admin {
+      border: 1px solid var(--color-gris-claro);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .platillo-admin.modo-edicion {
+      border-color: var(--color-borde-edicion);
+      background: var(--color-azul-claro);
+    }
+
+    .platillo-admin-img-wrap {
+      position: relative;
+      width: 100%;
+      height: 160px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #1e3a8a, #2563eb, #0ea5e9);
+      cursor: pointer;
+    }
+    .platillo-admin-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .img-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      gap: 6px;
+    }
+    .platillo-admin.modo-edicion .platillo-admin-img-wrap:hover .img-overlay { display: flex; }
+
+    .platillo-campo {
+      margin-bottom: 8px;
+    }
+    .platillo-campo label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--color-gris);
+      letter-spacing: 0.05em;
+      margin-bottom: 3px;
+    }
+    .platillo-campo .val {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .platillo-campo .val.precio { color: var(--color-verde-oscuro); font-size: 17px; }
+    .platillo-campo .val.desc { font-size: 13px; font-weight: 400; color: var(--color-gris); }
+    .platillo-campo input, .platillo-campo textarea {
+      display: none;
+      width: 100%;
+      padding: 8px 10px;
+      border: 2px solid var(--color-borde-edicion);
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      outline: none;
+      font-family: inherit;
+      resize: vertical;
+    }
+    .platillo-admin.modo-edicion .platillo-campo .val { display: none; }
+    .platillo-admin.modo-edicion .platillo-campo input,
+    .platillo-admin.modo-edicion .platillo-campo textarea { display: block; }
+
+    .platillo-acciones {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .platillo-acciones button { flex: 1; }
+
+    /* TOAST */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1f2937;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 9999;
+      transition: transform 0.3s ease;
+      white-space: nowrap;
+    }
+    #toast.visible { transform: translateX(-50%) translateY(0); }
+    #toast.ok { background: var(--color-verde-oscuro); }
+    #toast.error { background: var(--color-rojo); }
+
+    /* MODAL */
+    #modalOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #modalOverlay.visible { display: flex; }
+
+    .modal-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 440px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .modal-card h3 { font-size: 18px; font-weight: 800; margin-bottom: 20px; }
+
+    .modal-campo { margin-bottom: 14px; }
+    .modal-campo label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: var(--color-gris);
+    }
+    .modal-campo input, .modal-campo select, .modal-campo textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid var(--color-gris-claro);
+      border-radius: 9px;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .modal-campo input:focus, .modal-campo select:focus, .modal-campo textarea:focus {
+      border-color: var(--color-primario);
+    }
+
+    .modal-img-preview {
+      width: 100%;
+      height: 140px;
+      border-radius: 10px;
+      object-fit: cover;
+      margin-top: 8px;
+      display: none;
+      background: var(--color-gris-claro);
+    }
+    .modal-img-placeholder {
+      width: 100%;
+      height: 100px;
+      border-radius: 10px;
+      border: 2px dashed #d1d5db;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-gris);
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .modal-botones { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-botones button { flex: 1; padding: 12px; font-size: 15px; }
+
+    /* TEXTAREA PIE DE PÁGINA */
+    textarea.pie-textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--color-gris-claro);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+    }
+    textarea.pie-textarea:focus { border-color: var(--color-primario); }
+
+    /* MENSAJES DE CARGA */
+    .cargando {
+      text-align: center;
+      padding: 32px;
+      color: var(--color-gris);
+      font-size: 15px;
+    }
+
+    /* INPUT FILE OCULTO */
+    input[type="file"] { display: none; }
+
+    /* RESPONSIVE */
+    @media (min-width: 600px) {
+      .platillo-admin-img-wrap { height: 200px; }
+      .platillo-campo .val { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== PANTALLA LOGIN ===== -->
+<div id="pantallaLogin">
+  <div class="login-card">
+    <div class="logo-emoji">🍽️</div>
+    <h1>Panel de Control</h1>
+    <p>Ingresa tu contraseña de administrador</p>
+    <input type="password" id="inputPassword" placeholder="Contraseña" autocomplete="current-password">
+    <div id="errorLogin"></div>
+    <button class="btn-primario" onclick="iniciarSesion()">Entrar</button>
+  </div>
+</div>
+
+<!-- ===== PANEL PRINCIPAL ===== -->
+<div id="panelPrincipal">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo-wrap" onclick="document.getElementById('inputLogoFile').click()" title="Cambiar logo">
+      <div class="logo-placeholder" id="logoDisplay">🍽️</div>
+      <span class="logo-edit-badge">✏️</span>
+    </div>
+    <input type="file" id="inputLogoFile" accept="image/*" onchange="subirLogo(this)">
+
+    <div class="topbar-nombre">
+      <span id="nombreTienda">Mi Restaurante</span>
+      <input type="text" id="inputNombreTienda" placeholder="Nombre de la tienda">
+      <button class="btn-lapiz" onclick="editarNombre()" id="btnLapizNombre" title="Editar nombre">✏️</button>
+      <button id="btnGuardarNombre" onclick="guardarNombre()">Guardar</button>
+    </div>
+
+    <button class="btn-salir" onclick="cerrarSesion()">← Salir</button>
+  </div>
+
+  <!-- CONTENIDO -->
+  <div class="contenido" id="contenidoPanel">
+    <div class="cargando">Cargando configuración...</div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MODAL NUEVO PLATILLO -->
+<div id="modalOverlay">
+  <div class="modal-card">
+    <h3 id="modalTitulo">Nuevo Platillo</h3>
+
+    <div class="modal-campo">
+      <label>Categoría *</label>
+      <select id="modalCategoria" onchange="manejarCategoriaModal()">
+        <option value="">Selecciona...</option>
+        <option value="especial">⭐ Especial del día</option>
+        <option value="__nueva__">+ Nueva categoría...</option>
+      </select>
+    </div>
+
+    <div class="modal-campo" id="modalNuevaCatWrap" style="display:none">
+      <label>Nombre de la nueva categoría *</label>
+      <input type="text" id="modalNuevaCategoria" placeholder="Ej: Postres">
+    </div>
+
+    <div class="modal-campo">
+      <label>Nombre del platillo *</label>
+      <input type="text" id="modalNombre" placeholder="Ej: Chilaquiles verdes">
+    </div>
+
+    <div class="modal-campo">
+      <label>Descripción / Ingredientes</label>
+      <textarea id="modalDescripcion" placeholder="Ingredientes o descripción breve..." rows="3"></textarea>
+    </div>
+
+    <div class="modal-campo">
+      <label>Precio (MXN) *</label>
+      <input type="number" id="modalPrecio" placeholder="0.00" step="0.01" min="0">
+    </div>
+
+    <div class="modal-campo">
+      <label>Imagen del platillo</label>
+      <div class="modal-img-placeholder" onclick="document.getElementById('modalImagenFile').click()">
+        📷 Toca para seleccionar imagen
+      </div>
+      <img id="modalImgPreview" class="modal-img-preview" alt="Preview">
+      <input type="file" id="modalImagenFile" accept="image/*" onchange="previewModalImagen(this)">
+    </div>
+
+    <div class="modal-botones">
+      <button class="btn-gris" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-primario" style="margin-top:0" onclick="guardarNuevoPlatillo()">Guardar platillo</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="inputImagenEdicion" accept="image/*" style="display:none">
+
+<script>
+  // ===== ESTADO GLOBAL =====
+  let adminPass = '';
+  let configData = {};
+  let menuData = {};
+  let categoriaModalActual = '';
+  let platilloEnEdicion = null;
+  let modalImagenUrl = null;
+
+  // ===== UTILIDADES =====
+  function mostrarToast(msg, tipo = 'ok') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `visible ${tipo}`;
+    setTimeout(() => t.className = '', 2800);
+  }
+
+  async function api(method, path, body, isFormData = false) {
+    const opts = {
+      method,
+      headers: { 'X-Admin-Password': adminPass }
+    };
+    if (body && !isFormData) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    } else if (isFormData) {
+      opts.body = body;
+    }
+    const res = await fetch(path, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error del servidor');
+    return data;
+  }
+
+  async function apiPublica(path) {
+    const res = await fetch(path);
+    return res.json();
+  }
+
+  // ===== LOGIN =====
+  async function iniciarSesion() {
+    const pass = document.getElementById('inputPassword').value.trim();
+    const err = document.getElementById('errorLogin');
+    if (!pass) { err.textContent = 'Ingresa la contraseña'; return; }
+
+    err.textContent = '';
+    try {
+      adminPass = pass;
+      await api('GET', '/api/config');
+      sessionStorage.setItem('adminPass', pass);
+      await arrancarPanel();
+    } catch (e) {
+      adminPass = '';
+      err.textContent = 'Contraseña incorrecta. Intenta de nuevo.';
+    }
+  }
+
+  document.getElementById('inputPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') iniciarSesion();
+  });
+
+  function cerrarSesion() {
+    sessionStorage.removeItem('adminPass');
+    adminPass = '';
+    document.getElementById('pantallaLogin').style.display = 'flex';
+    document.getElementById('panelPrincipal').style.display = 'none';
+    document.getElementById('inputPassword').value = '';
+  }
+
+  // ===== ARRANCAR PANEL =====
+  async function arrancarPanel() {
+    document.getElementById('pantallaLogin').style.display = 'none';
+    document.getElementById('panelPrincipal').style.display = 'block';
+    await cargarTodo();
+  }
+
+  async function cargarTodo() {
+    const contenido = document.getElementById('contenidoPanel');
+    contenido.innerHTML = '<div class="cargando">Cargando...</div>';
+
+    try {
+      [configData, menuData] = await Promise.all([
+        apiPublica('/api/config'),
+        apiPublica('/api/menu')
+      ]);
+      aplicarConfig();
+      renderizarPanel();
+    } catch (e) {
+      contenido.innerHTML = `<div class="cargando">Error al cargar: ${e.message}</div>`;
+    }
+  }
+
+  function aplicarConfig() {
+    // Nombre de tienda en topbar
+    const nombre = configData.nombre_tienda || 'Mi Restaurante';
+    document.getElementById('nombreTienda').textContent = nombre;
+    document.getElementById('inputNombreTienda').value = nombre;
+
+    // Logo
+    if (configData.logo_url) {
+      const d = document.getElementById('logoDisplay');
+      d.innerHTML = `<img src="${configData.logo_url}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;">`;
+    }
+
+    // Color primario
+    if (configData.color_primario) {
+      document.documentElement.style.setProperty('--color-primario', configData.color_primario);
+    }
+  }
+
+  // ===== RENDER PANEL =====
+  function renderizarPanel() {
+    const contenido = document.getElementById('contenidoPanel');
+    let html = '';
+
+    // SECCIÓN: WhatsApp
+    html += `
+    <div class="seccion-card">
+      <h2>📱 Número de WhatsApp</h2>
+      <div class="campo-editable">
+        <label>Número</label>
+        <span class="valor-texto" id="valWhatsapp">${configData.whatsapp_number || 'No configurado'}</span>
+        <input type="tel" id="inputWhatsapp" value="${configData.whatsapp_number || ''}" placeholder="521XXXXXXXXXX">
+        <button class="btn-verde" id="btnEditarWA" onclick="editarCampo('WhatsApp')">Editar</button>
+        <button class="btn-verde-oscuro" id="btnGuardarWA" style="display:none" onclick="guardarWhatsapp()">Guardar</button>
+      </div>
+      <p style="font-size:12px;color:var(--color-gris)">Formato sin + ni espacios: 521XXXXXXXXXX</p>
+    </div>`;
+
+    // SECCIÓN: Color
+    html += `
+    <div class="seccion-card">
+      <h2>🎨 Color de la tienda</h2>
+      <div class="color-row">
+        <input type="color" id="inputColor" value="${configData.color_primario || '#f97316'}" oninput="previewColor(this.value)">
+        <div class="color-preview" id="colorPreview" style="background:${configData.color_primario || '#f97316'}"></div>
+        <span style="font-size:14px;color:var(--color-gris);flex:1" id="colorHex">${configData.color_primario || '#f97316'}</span>
+        <button class="btn-verde" onclick="guardarColor()">Guardar color</button>
+      </div>
+    </div>`;
+
+    // SECCIONES DE MENÚ
+    // Especial primero
+    const categorias = Object.keys(menuData);
+    const orden = ['especial', ...categorias.filter(c => c !== 'especial')];
+
+    orden.forEach(cat => {
+      if (!menuData[cat]) return;
+      html += renderizarCategoria(cat, menuData[cat]);
+    });
+
+    // Botón para agregar categoría nueva
+    html += `
+    <div class="seccion-card" style="text-align:center">
+      <button class="btn-primario" onclick="abrirModal('')" style="width:auto;padding:12px 32px">
+        + Agregar nueva sección / categoría
+      </button>
+    </div>`;
+
+    // SECCIÓN: Pie de página
+    html += `
+    <div class="seccion-card">
+      <h2>📝 Pie de página</h2>
+      <textarea class="pie-textarea" id="textPiePagina" placeholder="Texto de aviso legal o disclaimer...">${configData.pie_pagina || ''}</textarea>
+      <button class="btn-verde" style="margin-top:10px;width:100%" onclick="guardarPiePagina()">Guardar pie de página</button>
+    </div>
+    <div style="height:40px"></div>`;
+
+    contenido.innerHTML = html;
+  }
+
+  function renderizarCategoria(cat, platillos) {
+    const nombreCat = cat === 'especial' ? '⭐ Especial del día' : cat.charAt(0).toUpperCase() + cat.slice(1);
+    const total = platillos.length;
+
+    // Dots de paginación (max 8 dots visibles)
+    let dotsHtml = '';
+    const maxDots = Math.min(total, 8);
+    for (let i = 0; i < maxDots; i++) {
+      dotsHtml += `<span class="dot activo"></span>`;
+    }
+    const extraCount = total > 8 ? `<span class="dot-count">+${total - 8}</span>` : '';
+
+    let platillosHtml = platillos.map(p => renderizarPlatilloAdmin(p)).join('');
+
+    return `
+    <div class="seccion-card" id="seccion-${sanitizeId(cat)}">
+      <div class="categoria-header">
+        <div class="paginacion-dots">${dotsHtml}${extraCount}</div>
+        <button class="btn-add-platillo" onclick="abrirModal('${cat}')" title="Agregar platillo">+</button>
+        <h3>${nombreCat}</h3>
+      </div>
+      <div id="lista-${sanitizeId(cat)}">
+        ${platillosHtml}
+      </div>
+    </div>`;
+  }
+
+  function sanitizeId(str) {
+    return str.replace(/[^a-z0-9]/gi, '_');
+  }
+
+  function renderizarPlatilloAdmin(p) {
+    const imgContent = p.imagen_url
+      ? `<img src="${p.imagen_url}" alt="${p.nombre}" style="width:100%;height:100%;object-fit:cover">`
+      : '';
+
+    return `
+    <div class="platillo-admin" id="platillo-${p.id}" data-id="${p.id}" data-cat="${p.categoria}">
+      <div class="platillo-admin-img-wrap" onclick="clickImgEdicion('${p.id}')">
+        ${imgContent}
+        <div class="img-overlay">📷 Cambiar imagen</div>
+      </div>
+
+      <div class="platillo-campo">
+        <label>Nombre</label>
+        <div class="val">${p.nombre}</div>
+        <input type="text" value="${p.nombre || ''}" placeholder="Nombre del platillo">
+      </div>
+      <div class="platillo-campo">
+        <label>Descripción</label>
+        <div class="val desc">${p.descripcion || '—'}</div>
+        <textarea placeholder="Ingredientes o descripción" rows="2">${p.descripcion || ''}</textarea>
+      </div>
+      <div class="platillo-campo">
+        <label>Precio (MXN)</label>
+        <div class="val precio">$${parseFloat(p.precio).toFixed(2)}</div>
+        <input type="number" value="${p.precio}" placeholder="0.00" step="0.01" min="0">
+      </div>
+
+      <div class="platillo-acciones">
+        <button class="btn-verde" onclick="activarEdicion('${p.id}')">✏️ Editar</button>
+        <button class="btn-verde-oscuro" onclick="guardarEdicion('${p.id}')" style="display:none">💾 Guardar</button>
+        <button class="btn-rojo" onclick="borrarPlatillo('${p.id}')">🗑 Borrar</button>
+      </div>
+    </div>`;
+  }
+
+  // ===== NOMBRE DE TIENDA EN TOPBAR =====
+  function editarNombre() {
+    document.getElementById('nombreTienda').style.display = 'none';
+    document.getElementById('inputNombreTienda').style.display = 'block';
+    document.getElementById('btnLapizNombre').style.display = 'none';
+    document.getElementById('btnGuardarNombre').style.display = 'block';
+    document.getElementById('inputNombreTienda').focus();
+  }
+
+  async function guardarNombre() {
+    const val = document.getElementById('inputNombreTienda').value.trim();
+    if (!val) return;
+    try {
+      await api('POST', '/api/admin/config', { key: 'nombre_tienda', value: val });
+      configData.nombre_tienda = val;
+      document.getElementById('nombreTienda').textContent = val;
+      document.getElementById('nombreTienda').style.display = 'block';
+      document.getElementById('inputNombreTienda').style.display = 'none';
+      document.getElementById('btnLapizNombre').style.display = 'block';
+      document.getElementById('btnGuardarNombre').style.display = 'none';
+      mostrarToast('✅ Nombre guardado');
+    } catch (e) {
+      mostrarToast('❌ ' + e.message, 'error');
+    }
+  }
+
+  // ===== LOGO =====
+  async function subirLogo(input) {
+    if (!input.files[0]) return;
+    const fd = new FormData();
+    fd.append('imagen', input.files[0]);
+    try {
+      mostrarToast('Subiendo logo...');
+      const data = await api('POST', '/api/upload/imagen', fd, true);
+      await api('POST', '/api/admin/config', { key: 'logo_url', value: data.url });
+      configData.logo_url = data.url;
+      document.getElementById('logoDisplay').innerHTML =
+        `<img src="${data.url}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;">`;
+      mostrarToast('✅ Logo actualizado');
+    } catch (e) {
+      mostrarToast('❌ ' + e.message, 'error');
+    }
+  }
+
+  // ===== WHATSAPP =====
+  function editarCampo(campo) {
+    document.getElementById('valWhatsapp').style.display = 'none';
+    document.getElementById('inputWhatsapp').style.display = 'block';
+    document.getElementById('btnEditarWA').style.display = 'none';
+    document.getElementById('btnGuardarWA').style.display = 'block';
+    document.getElementById('inputWhatsapp').focus();
+  }
+
+  async function guardarWhatsapp() {
+    const val = document.getElementById('inputWhatsapp').value.trim();
+    if (!val) return;
+    try {
+      await api('POST', '/api/admin/config', { key: 'whatsapp_number', value: val });
+      configData.whatsapp_number = val;
+      document.getElementById('valWhatsapp').textContent = val;
+      document.getElementById('valWhatsapp').style.display = 'block';
+      document.getElementById('inputWhatsapp').style.display = 'none';
+      document.getElementById('btnEditarWA').style.display = 'block';
+      document.getElementById('btnGuardarWA').style.display = 'none';
+      mostrarToast('✅ Número guardado');
+    } catch (e) {
+      mostrarToast('❌ ' + e.message, 'error');
+    }
+  }
+
+  // ===== COLOR =====
+  function previewColor(val) {
+    document.documentElement.style.setProperty('--color-primario', val);
+    document.getElementById('colorPreview').style.background = val;
+    document.getElementById('colorHex').textContent = val;
+  }
+
+  async function guardarColor() {
+    const val = document.getElementById('inputColor').value;
+    try {
+      await api('POST', '/api/admin/config', { key: 'color_primario', value: val });
+      configData.color_primario = val;
+      mostrarToast('✅ Color guardado');
+    } catch (e) {
+      mostrarToast('❌ ' + e.message, 'error');
+    }
+  }
+
+  // ===== EDICIÓN DE PLATILLO =====
+  function activarEdicion(id) {
+    const card = document.getElementById(`platillo-${id}`);
+    card.classList.add('modo-edicion');
+    const btns = card.querySelectorAll('.platillo-acciones button');
+    btns[0].style.display = 'none';   // Editar
+    btns[1].style.display = 'block';  // Guardar
+    btns[2].style.display = 'none';   // Borrar (oculto en edición)
+    platilloEnEdicion = id;
+  }
+
+  async function guardarEdicion(id) {
+    const card = document.getElementById(`platillo-${id}`);
+    const campos = card.querySelectorAll('.platillo-campo');
+    const nombre = campos[0].querySelector('input').value.trim();
+    const descripcion = campos[1].querySelector('textarea').value.trim();
+    const precio = campos[2].querySelector('input').value;
+
+    if (!nombre || !precio) {
+      mostrarToast('⚠️ Nombre y precio son requeridos', 'error');
+      return;
+    }
+
+    try {
+      const actualizado = await api('PUT', `/api/admin/platillo/${id}`, { nombre, descripcion, precio: parseFloat(precio) });
+
+      // Actualizar valores visibles
+      campos[0].querySelector('.val').textContent = nombre;
+      campos[1].querySelector('.val').textContent = descripcion || '—';
+      campos[2].querySelector('.val').textContent = `$${parseFloat(precio).toFixed(2)}`;
+
+      card.classList.remove('modo-edicion');
+      const btns = card.querySelectorAll('.platillo-acciones button');
+      btns[0].style.display = 'block';
+      btns[1].style.display = 'none';
+      btns[2].style.display = 'block';
+      platilloEnEdicion = null;
+      mostrarToast('✅ Platillo actualizado');
+    } catch (e) {
+      mostrarToast('❌ ' + e.message, 'error');
+    }
+  }
+
+  async function borrarPlatillo(id) {
+    if (!confirm('¿Eliminar este platillo del menú?')) return;
+    try {
+      await api('DELETE', `/api/admin/platillo/${id}`);
+      const card = document.getElementById(`platillo-${id}`);
+      card.style.opacity = '0';
+      card.style.transition = 'opacity 0.3s';
+      setTimeout(() => card.remove(), 300);
+      mostrarToast('✅ Platillo eliminado');
+    } catch (e) {
+      mostrarToast('❌ ' + e.message, 'error');
+    }
+  }
+
+  // ===== IMAGEN EN EDICIÓN =====
+  function clickImgEdicion(id) {
+    const card = document.getElementById(`platillo-${id}`);
+    if (!card.classList.contains('modo-edicion')) return;
+    const fileInput = document.getElementById('inputImagenEdicion');
+    fileInput.onchange = async (e) => {
+      if (!e.target.files[0]) return;
+      const fd = new FormData();
+      fd.append('imagen', e.target.files[0]);
+      try {
+        mostrarToast('Subiendo imagen...');
+        const data = await api('POST', '/api/upload/imagen', fd, true);
+        await api('PUT', `/api/admin/platillo/${id}`, { imagen_url: data.url });
+        // Actualizar imagen en el DOM
+        const wrap = card.querySelector('.platillo-admin-img-wrap');
+        wrap.innerHTML = `<img src="${data.url}" style="width:100%;height:100%;object-fit:cover"><div class="img-overlay">📷 Cambiar imagen</div>`;
+        mostrarToast('✅ Imagen actualizada');
+      } catch (err) {
+        mostrarToast('❌ ' + err.message, 'error');
+      }
+      fileInput.value = '';
+    };
+    fileInput.click();
+  }
+
+  // ===== MODAL NUEVO PLATILLO =====
+  function abrirModal(catPreseleccionada) {
+    categoriaModalActual = catPreseleccionada;
+    modalImagenUrl = null;
+
+    // Limpiar campos
+    document.getElementById('modalNombre').value = '';
+    document.getElementById('modalDescripcion').value = '';
+    document.getElementById('modalPrecio').value = '';
+    document.getElementById('modalNuevaCategoria').value = '';
+    document.getElementById('modalNuevaCatWrap').style.display = 'none';
+    document.getElementById('modalImagenFile').value = '';
+    document.getElementById('modalImgPreview').style.display = 'none';
+
+    // Poblar select de categorías
+    const sel = document.getElementById('modalCategoria');
+    sel.innerHTML = '<option value="">Selecciona categoría...</option><option value="especial">⭐ Especial del día</option>';
+    Object.keys(menuData).filter(c => c !== 'especial').forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c.charAt(0).toUpperCase() + c.slice(1);
+      sel.appendChild(opt);
+    });
+    sel.innerHTML += '<option value="__nueva__">+ Nueva categoría...</option>';
+
+    if (catPreseleccionada) sel.value = catPreseleccionada;
+
+    document.getElementById('modalOverlay').classList.add('visible');
+  }
+
+  function cerrarModal() {
+    document.getElementById('modalOverlay').classList.remove('visible');
+  }
+
+  function manejarCategoriaModal() {
+    const val = document.getElementById('modalCategoria').value;
+    document.getElementById('modalNuevaCatWrap').style.display = val === '__nueva__' ? 'block' : 'none';
+  }
+
+  function previewModalImagen(input) {
+    if (!input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('modalImgPreview');
+      img.src = e.target.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  async function guardarNuevoPlatillo() {
+    let cat = document.getElementById('modalCategoria').value;
+    if (cat === '__nueva__') {
+      cat = document.getElementById('modalNuevaCategoria').value.trim().toLowerCase();
+      if (!cat) { mostrarToast('⚠️ Escribe el nombre de la categoría', 'error'); return; }
+    }
+    const nombre = document.getElementById('modalNombre').value.trim();
+    const descripcion = document.getElementById('modalDescripcion').value.trim();
+    const precio = document.getElementById('modalPrecio').value;
+
+    if (!cat) { mostrarToast('⚠️ Selecciona una categoría', 'error'); return; }
+    if (!nombre) { mostrarToast('⚠️ El nombre es requerido', 'error'); return; }
+    if (!precio) { mostrarToast('⚠️ El precio es requerido', 'error'); return; }
+
+    try {
+      // Subir imagen si hay
+      let imagen_url = null;
+      const imgFile = document.getElementById('modalImagenFile').files[0];
+      if (imgFile) {
+        mostrarToast('Subiendo imagen...');
+        const fd = new FormData();
+        fd.append('imagen', imgFile);
+        const imgData = await api('POST', '/api/upload/imagen', fd, true);
+        imagen_url = imgData.url;
+      }
+
+      const nuevo = await api('POST', '/api/admin/platillo', {
+        categoria: cat, nombre, descripcion, precio: parseFloat(precio), imagen_url,
+        orden: (menuData[cat] || []).length
+      });
+
+      // Actualizar estado local
+      if (!menuData[cat]) menuData[cat] = [];
+      menuData[cat].push(nuevo);
+
+      cerrarModal();
+      mostrarToast('✅ Platillo agregado');
+
+      // Re-renderizar solo esa sección o todo el panel
+      await cargarTodo();
+
+    } catch (e) {
+      mostrarToast('❌ ' + e.message, 'error');
+    }
+  }
+
+  // ===== PIE DE PÁGINA =====
+  async function guardarPiePagina() {
+    const val = document.getElementById('textPiePagina').value.trim();
+    try {
+      await api('POST', '/api/admin/config', { key: 'pie_pagina', value: val });
+      configData.pie_pagina = val;
+      mostrarToast('✅ Pie de página guardado');
+    } catch (e) {
+      mostrarToast('❌ ' + e.message, 'error');
+    }
+  }
+
+  // ===== CERRAR MODAL CON CLICK FUERA =====
+  document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModal();
+  });
+
+  // ===== INICIO: VERIFICAR SESIÓN =====
+  (async () => {
+    const pass = sessionStorage.getItem('adminPass');
+    if (pass) {
+      try {
+        adminPass = pass;
+        await api('GET', '/api/config');
+        await arrancarPanel();
+      } catch {
+        adminPass = '';
+        sessionStorage.removeItem('adminPass');
+      }
+    }
+  })();
+</script>
+</body>
+</html>

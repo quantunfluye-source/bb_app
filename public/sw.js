@@ -1,4 +1,4 @@
-const CACHE_NAME = 'menu-express-v1';
+const CACHE_NAME = 'menu-express-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -36,28 +36,28 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Stale-while-revalidate para /api/menu y /api/config
-  if (url.includes('/api/menu') || url.includes('/api/config')) {
-    event.respondWith(
-      caches.match(event.request)
-        .then(cachedResponse => {
-          const fetchPromise = fetch(event.request)
-            .then(response => {
-              if (response.status === 200) {
-                const responseClone = response.clone();
-                caches.open(CACHE_NAME).then(cache => {
-                  cache.put(event.request, responseClone);
-                });
-              }
-              return response;
-            })
-            .catch(() => cachedResponse);
+  // URLs que deben ser frescas prioritariamente (Network-First)
+  const isPriorityApi = url.includes('/api/menu') || url.includes('/api/config') || url.includes('/api/clientes');
 
-          return cachedResponse || fetchPromise;
+  if (isPriorityApi) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return response;
         })
+        .catch(() => 
+          caches.match(event.request)
+            .then(response => response || new Response('Sin conexión', { status: 503 }))
+        )
     );
   } else {
-    // Network-first para todo lo demás
+    // Para otros recursos (estáticos), intentamos red primero pero con fallback a caché
     event.respondWith(
       fetch(event.request)
         .then(response => {

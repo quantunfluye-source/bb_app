@@ -369,6 +369,7 @@
       config: {},
       fotoUrl: null,
       isSubmitting: false,
+      isUploadingFoto: false,
 
       async init() {
         // Generar o recuperar session_id
@@ -404,6 +405,7 @@
           this.config = await res.json();
         } catch (e) {
           console.error('Error cargando config:', e);
+          // Error silencioso para config, usa defaults
         }
       },
 
@@ -427,6 +429,7 @@
           }
         } catch (e) {
           console.error('Error cargando datos cliente:', e);
+          // Error silencioso aquí para no asustar al usuario al entrar
         }
       },
 
@@ -450,8 +453,21 @@
       },
 
       handleFotoChange(e) {
+        if (this.isUploadingFoto) return;
         const file = e.target.files[0];
         if (!file) return;
+
+        // Validación de tamaño inmediata (3MB)
+        if (file.size > 3 * 1024 * 1024) {
+          this.mostrarMensaje('❌ La imagen pesa demasiado (máximo 3MB). Elige otra o comprímela.', 'error');
+          e.target.value = ''; // Limpiar selección
+          return;
+        }
+
+        // Deshabilitar botón mientras sube para evitar guardar sin la URL de la foto
+        const btnGuardar = document.getElementById('btnGuardar');
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = '⏳ Subiendo foto...';
 
         // Preview
         const reader = new FileReader();
@@ -469,18 +485,23 @@
         marco.innerHTML = `<img src="${src}" alt="Foto">`;
       },
 
+      analizarError(error) {
+        if (error instanceof TypeError) {
+          return '❌ Error de conexión. Verifica tu internet e intenta de nuevo.';
+        }
+        return `❌ Error: ${error.message || 'Ocurrió un problema inesperado'}`;
+      },
+
       async subirFoto(file) {
+        this.isUploadingFoto = true;
+        const btnGuardar = document.getElementById('btnGuardar');
+        
         try {
           const formData = new FormData();
           formData.append('imagen', file);
 
-          // Obtener contraseña admin del localStorage si existe
-          const adminPassword = localStorage.getItem('adminPassword');
-          const headers = adminPassword ? { 'X-Admin-Password': adminPassword } : {};
-
-          const res = await fetch('/api/upload/imagen', {
+          const res = await fetch('/api/upload/cliente-foto', {
             method: 'POST',
-            headers,
             body: formData
           });
 
@@ -489,11 +510,17 @@
             this.fotoUrl = data.url;
             this.mostrarMensaje('Foto guardada correctamente', 'exito');
           } else {
-            this.mostrarMensaje('Error al subir la foto', 'error');
+            const errorData = await res.json().catch(() => ({}));
+            const msg = errorData.error || 'Error al subir la foto';
+            this.mostrarMensaje(msg, 'error');
           }
         } catch (e) {
           console.error('Error subiendo foto:', e);
           this.mostrarMensaje('Error al subir la foto', 'error');
+        } finally {
+          this.isUploadingFoto = false;
+          btnGuardar.disabled = false;
+          btnGuardar.textContent = 'Guardar mi información';
         }
       },
 

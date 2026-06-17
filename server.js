@@ -13,6 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
+  'image/jpg',
+  'image/pjpeg',
   'image/png',
   'image/gif',
   'image/webp',
@@ -71,7 +73,78 @@ const requireAdminAuth = (req, res, next) => {
   next();
 };
 
+// Función genérica para subir a Supabase Storage
+async function uploadToSupabase(file, folder = '') {
+  if (!file) throw new Error('No se subió ningún archivo');
+  
+  const fileBuffer = fs.readFileSync(file.path);
+  const originalExt = path.extname(file.originalname || '').toLowerCase();
+  const safeBaseName = sanitizeFileName(path.basename(file.originalname || 'imagen', originalExt)) || 'imagen';
+  const safeExt = originalExt && originalExt.length <= 8 ? originalExt : '';
+  const fileName = `${folder}${Date.now()}-${safeBaseName}${safeExt}`;
+  
+  const { data, error } = await supabase
+    .storage
+    .from('menu-imagenes')
+    .upload(fileName, fileBuffer, {
+      contentType: file.mimetype,
+      upsert: false
+    });
+  
+  if (error) {
+    console.error('❌ Error Supabase Storage:', error);
+    throw new Error(`Supabase Storage error: ${error.message}`);
+  }
+  
+  const { data: urlData } = supabase
+    .storage
+    .from('menu-imagenes')
+    .getPublicUrl(fileName);
+    
+  return { fileName, publicUrl: urlData.publicUrl };
+}
+
 // ============= ENDPOINTS PÚBLICOS =============
+
+// POST /api/upload/cliente-foto - Sube foto de cliente (Público, 3MB limit)
+const uploadCliente = multer({
+  dest: path.join(__dirname, 'uploads'),
+  limits: { fileSize: 3 * 1024 * 1024 }, // 3MB
+  fileFilter: (req, file, cb) => {
+    const mimetype = (file.mimetype || '').toLowerCase();
+    if (mimetype.startsWith('image/') || IMAGE_MIME_TYPES.has(mimetype)) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  }
+});
+
+app.post('/api/upload/cliente-foto', uploadCliente.single('imagen'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se subió ningún archivo' });
+    }
+    
+    console.log(`👤 Subiendo foto de cliente: ${req.file.originalname}`);
+    
+    const result = await uploadToSupabase(req.file, 'clientes/');
+    
+    // Limpiar archivo temporal
+    fs.unlinkSync(req.file.path);
+    
+    console.log('✅ Foto de cliente subida:', result.fileName);
+    console.log('🔗 URL pública:', result.publicUrl);
+    
+    res.json({ url: result.publicUrl });
+  } catch (error) {
+    console.error('Client upload error:', error);
+    if (req.file && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    res.status(500).json({ error: `Upload failed: ${error.message}` });
+  }
+});
 
 // GET /api/config - Devuelve config como objeto clave-valor
 app.get('/api/config', async (req, res) => {
@@ -93,26 +166,69 @@ app.get('/api/config', async (req, res) => {
   }
 });
 
-// GET /api/menu - Devuelve platillos activos agrupados por categoría
-app.get('/api/menu', async (req, res) => {
+// GET /api/categorias - Devuelve lista de categorías ordenadas
+app.get('/api/categorias', async (req, res) => {
   try {
     const { data, error } = await supabase
+      .from('categorias')
+      .select('*')
+      .order('orden', { ascending: true });
+    
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/menu - Devuelve platillos activos agrupados por categoría (respeta orden de categorías)
+app.get('/api/menu', async (req, res) => {
+  try {
+    // 1. Obtener categorías ordenadas
+    const { data: categorias, error: catError } = await supabase
+      .from('categorias')
+      .select('*')
+      .order('orden', { ascending: true });
+    
+    if (catError) throw catError;
+
+    // 2. Obtener todos los platillos activos
+    const { data: platillos, error: platError } = await supabase
       .from('platillos')
       .select('*')
       .eq('activo', true)
       .order('orden', { ascending: true });
     
-    if (error) throw error;
+    if (platError) throw platError;
     
+    // 3. Agrupar platillos por su nombre de categoría (para mantener compatibilidad con el frontend)
     const menu = {};
-    data.forEach(platillo => {
-      if (!menu[platillo.categoria]) {
-        menu[platillo.categoria] = [];
+    
+    // Inicializar el objeto con todas las categorías en orden
+    categorias.forEach(cat => {
+      menu[cat.nombre] = [];
+    });
+
+    // Repartir platillos
+    platillos.forEach(p => {
+      // Intentar encontrar el nombre de la categoría por ID
+      const cat = categorias.find(c => c.id === p.categoria_id);
+      const catNombre = cat ? cat.nombre : (p.categoria || 'Sin Categoría');
+      
+      if (!menu[catNombre]) menu[catNombre] = [];
+      menu[catNombre].push(p);
+    });
+
+    // 4. Filtrar categorías vacías que NO tengan visible_si_vacia = true
+    const menuFiltrado = {};
+    categorias.forEach(cat => {
+      const tienePlatillos = menu[cat.nombre].length > 0;
+      if (tienePlatillos || cat.visible_si_vacia) {
+        menuFiltrado[cat.nombre] = menu[cat.nombre];
       }
-      menu[platillo.categoria].push(platillo);
     });
     
-    res.json(menu);
+    res.json(menuFiltrado);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -212,19 +328,110 @@ app.post('/api/admin/config', requireAdminAuth, async (req, res) => {
   }
 });
 
+// --- Endpoints de Categorías (Admin) ---
+
+// POST /api/admin/categorias - Crear categoría
+app.post('/api/admin/categorias', requireAdminAuth, async (req, res) => {
+  try {
+    const { nombre, orden, visible_si_vacia } = req.body;
+    if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
+
+    const { data, error } = await supabase
+      .from('categorias')
+      .insert({ nombre, orden: orden || 0, visible_si_vacia: !!visible_si_vacia })
+      .select();
+
+    if (error) throw error;
+    res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/admin/categorias/:id - Editar categoría
+app.put('/api/admin/categorias/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, orden, visible_si_vacia } = req.body;
+
+    const { data, error } = await supabase
+      .from('categorias')
+      .update({ nombre, orden, visible_si_vacia })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/admin/categorias/reordenar - Reordenar múltiples categorías en una sola petición
+app.put('/api/admin/categorias/reordenar', requireAdminAuth, async (req, res) => {
+  try {
+    const { cambios } = req.body; // Array de { id, orden }
+    if (!Array.isArray(cambios)) return res.status(400).json({ error: 'Cambios requeridos' });
+
+    const promises = cambios.map(c => 
+      supabase.from('categorias').update({ orden: c.orden }).eq('id', c.id)
+    );
+
+    const results = await Promise.all(promises);
+    const errors = results.filter(r => r.error);
+    if (errors.length > 0) throw errors[0].error;
+
+    res.json({ message: 'Categorías reordenadas' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/admin/categorias/:id - Eliminar categoría
+app.delete('/api/admin/categorias/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Opcional: Verificar si hay platillos vinculados antes de borrar
+    const { count, error: countError } = await supabase
+      .from('platillos')
+      .select('*', { count: 'exact', head: true })
+      .eq('categoria_id', id)
+      .eq('activo', true);
+
+    if (countError) throw countError;
+    if (count > 0) {
+      return res.status(400).json({ error: 'No se puede borrar una categoría con platillos activos' });
+    }
+
+    const { error } = await supabase
+      .from('categorias')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ message: 'Categoría eliminada' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Endpoints de Platillos (Admin) ---
+
 // POST /api/admin/platillo - Crea platillo
 app.post('/api/admin/platillo', requireAdminAuth, async (req, res) => {
   try {
-    const { categoria, nombre, descripcion, precio, imagen_url, orden } = req.body;
+    const { categoria_id, categoria, nombre, descripcion, precio, imagen_url, orden } = req.body;
     
-    if (!categoria || !nombre || precio === undefined) {
+    if (!nombre || precio === undefined) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
     
     const { data, error } = await supabase
       .from('platillos')
       .insert({
-        categoria,
+        categoria_id: categoria_id || null,
+        categoria: categoria || null, // Mantener texto por ahora
         nombre,
         descripcion: descripcion || null,
         precio: parseFloat(precio),
@@ -246,9 +453,10 @@ app.post('/api/admin/platillo', requireAdminAuth, async (req, res) => {
 app.put('/api/admin/platillo/:id', requireAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { categoria, nombre, descripcion, precio, imagen_url, orden, activo } = req.body;
+    const { categoria_id, categoria, nombre, descripcion, precio, imagen_url, orden, activo } = req.body;
     
     const updates = {};
+    if (categoria_id !== undefined) updates.categoria_id = categoria_id;
     if (categoria !== undefined) updates.categoria = categoria;
     if (nombre !== undefined) updates.nombre = nombre;
     if (descripcion !== undefined) updates.descripcion = descripcion;
@@ -273,6 +481,28 @@ app.put('/api/admin/platillo/:id', requireAdminAuth, async (req, res) => {
     }
     
     res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/admin/platillos/reordenar - Reordenar múltiples platillos en una sola petición
+app.put('/api/admin/platillos/reordenar', requireAdminAuth, async (req, res) => {
+  try {
+    const { cambios } = req.body; // Array de { id, orden, categoria_id }
+    if (!Array.isArray(cambios)) return res.status(400).json({ error: 'Cambios requeridos' });
+
+    const promises = cambios.map(c => {
+      const updates = { orden: c.orden };
+      if (c.categoria_id) updates.categoria_id = c.categoria_id;
+      return supabase.from('platillos').update(updates).eq('id', c.id);
+    });
+
+    const results = await Promise.all(promises);
+    const errors = results.filter(r => r.error);
+    if (errors.length > 0) throw errors[0].error;
+
+    res.json({ message: 'Platillos reordenados' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

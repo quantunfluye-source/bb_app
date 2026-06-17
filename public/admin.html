@@ -193,6 +193,13 @@
       flex-shrink: 0;
     }
 
+    .platillo-item.drag-indicador-antes {
+      border-top: 3px solid var(--color-primario);
+    }
+    .platillo-item.drag-indicador-despues {
+      border-bottom: 3px solid var(--color-primario);
+    }
+
     .mensaje {
       padding: 12px;
       border-radius: 6px;
@@ -260,6 +267,7 @@
       <div class="tabs">
         <button class="tab-btn active" onclick="mostrarTab('config')">⚙️ Configuración</button>
         <button class="tab-btn" onclick="mostrarTab('platillos')">🍽️ Platillos</button>
+        <button class="tab-btn" onclick="mostrarTab('categoriasTab')">📁 Categorías</button>
         <button class="tab-btn" onclick="mostrarTab('clientes')">👥 Clientes</button>
       </div>
 
@@ -293,8 +301,10 @@
         
         <h3>Agregar Nuevo Platillo</h3>
         <div class="form-group">
-          <label for="categoria">Categoría:</label>
-          <input type="text" id="categoria" placeholder="Ej: Tacos, Bebidas, Postres">
+          <label for="categoria_id">Categoría:</label>
+          <select id="categoria_id">
+            <option value="">Cargando categorías...</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="nombre">Nombre:</label>
@@ -312,13 +322,35 @@
           <label for="imagenFile">Subir Imagen:</label>
           <input type="file" id="imagenFile" accept="image/*" capture="environment">
           <div id="uploadProgress" style="display:none;margin-top:8px;padding:8px 12px;background:#fef3c7;border-radius:6px;font-size:13px;color:#92400e;">
-             Subiendo imagen...
+            📤 Subiendo imagen...
           </div>
         </div>
         <button id="btnPlatilloSubmit" onclick="agregarPlatillo()">➕ Agregar Platillo</button>
 
         <h3 style="margin-top: 30px;">Platillos Actuales</h3>
         <div id="listaPlatillos"></div>
+      </div>
+
+      <!-- TAB: CATEGORÍAS -->
+      <div id="categoriasTab" class="section">
+        <h2>Gestionar Categorías</h2>
+        
+        <div class="auth-section">
+          <h3>Nueva Categoría</h3>
+          <div class="form-group">
+            <label for="nuevaCatNombre">Nombre de la Categoría:</label>
+            <input type="text" id="nuevaCatNombre" placeholder="Ej: Postres, Bebidas">
+          </div>
+          <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="catVisibleVacia" style="width:auto;">
+            <label for="catVisibleVacia" style="margin:0;">¿Mostrar siempre aunque esté vacía?</label>
+          </div>
+          <button onclick="crearCategoria()">➕ Crear Categoría</button>
+        </div>
+
+        <h3 style="margin-top:20px;">Orden de Secciones</h3>
+        <p style="font-size:12px;color:var(--color-gris);margin-bottom:10px;">Arrastra las categorías para cambiar su orden en el menú.</p>
+        <div id="listaCategoriasAdmin"></div>
       </div>
 
       <!-- TAB: CLIENTES -->
@@ -332,15 +364,62 @@
   <script>
     const API_URL = '';
     let adminAuth = false;
-        let adminPassword = localStorage.getItem('adminPassword') || '';
+    let adminPassword = localStorage.getItem('adminPassword') || '';
     let menu = {};  // Guardar menú para editar
+    let categorias = []; // Lista de categorías
     let editandoPlatilloId = null;
 
     function mostrarMensaje(texto, tipo = 'exito') {
       const div = document.getElementById('mensajeDiv');
       div.textContent = texto;
       div.className = `mensaje ${tipo}`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => div.className = 'mensaje', 5000);
+    }
+
+    function analizarError(error) {
+      if (error.message === 'Sesión expirada') return null; // Ya manejado en fetchAdmin
+      if (error instanceof TypeError) {
+        return '❌ Error de conexión. Verifica tu internet e intenta de nuevo.';
+      }
+      return `❌ Error: ${error.message || 'Ocurrió un problema inesperado'}`;
+    }
+
+    // Wrapper para fetch que maneja autenticación y errores 401
+    async function fetchAdmin(url, options = {}) {
+      const defaultHeaders = {
+        'x-admin-password': adminPassword
+      };
+
+      if (options.body && !(options.body instanceof FormData)) {
+        defaultHeaders['Content-Type'] = 'application/json';
+      }
+
+      options.headers = {
+        ...defaultHeaders,
+        ...options.headers
+      };
+
+      try {
+        const res = await fetch(url, options);
+
+        if (res.status === 401) {
+          adminAuth = false;
+          adminPassword = '';
+          localStorage.removeItem('adminPassword');
+          document.getElementById('authSection').style.display = 'block';
+          document.getElementById('panelSection').style.display = 'none';
+          mostrarMensaje('❌ Tu sesión expiró o la contraseña es incorrecta. Ingresa de nuevo.', 'error');
+          throw new Error('Sesión expirada');
+        }
+
+        return res;
+      } catch (error) {
+        if (error.message !== 'Sesión expirada') {
+          console.error('Fetch error:', error);
+        }
+        throw error;
+      }
     }
 
     async function autenticar() {
@@ -367,41 +446,187 @@
           mostrarMensaje('❌ Contraseña incorrecta', 'error');
         }
       } catch (error) {
-        mostrarMensaje(`Error: ${error.message}`, 'error');
+        mostrarMensaje(analizarError(error), 'error');
       }
     }
 
     function mostrarTab(tabName) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        // Si el texto del botón coincide con el nombre de la pestaña (mapeo simple)
+        if (b.getAttribute('onclick')?.includes(`'${tabName}'`)) {
+          b.classList.add('active');
+        }
+      });
       document.getElementById(tabName).classList.add('active');
-      event.target.classList.add('active');
+      
+      if (tabName === 'categoriasTab') {
+        renderCategoriasAdmin();
+      }
     }
 
     async function cargarDatos() {
       try {
-        const configRes = await fetch(`${API_URL}/api/config`);
+        const configRes = await fetch(`${API_URL}/api/config`, { cache: 'no-store' });
         const config = await configRes.json();
         
-        // config ya es un objeto {key: value}
         document.getElementById('nombreTienda').value = config.nombre_tienda || '';
         document.getElementById('telefonoTienda').value = config.telefono || '';
         document.getElementById('colorPrimario').value = config.color_primario || '#f97316';
         document.getElementById('piePagina').value = config.pie_pagina || '';
         document.getElementById('tiendaNombre').textContent = config.nombre_tienda || 'Menú Express';
 
-        const menuRes = await fetch(`${API_URL}/api/menu`);
+        await cargarCategorias();
+
+        const menuRes = await fetch(`${API_URL}/api/menu`, { cache: 'no-store' });
         menu = await menuRes.json();
         mostrarPlatillos(menu);
 
-        const clientesRes = await fetch(`${API_URL}/api/clientes`);
+        const clientesRes = await fetch(`${API_URL}/api/clientes`, { cache: 'no-store' });
         if (clientesRes.ok) {
           const clientes = await clientesRes.json();
           mostrarClientes(clientes);
         }
       } catch (error) {
-        mostrarMensaje(`Error cargando datos: ${error.message}`, 'error');
+        mostrarMensaje(analizarError(error), 'error');
         console.error(error);
+      }
+    }
+
+    async function cargarCategorias() {
+      try {
+        const res = await fetch(`${API_URL}/api/categorias`, { cache: 'no-store' });
+        categorias = await res.json();
+        
+        const select = document.getElementById('categoria_id');
+        let html = '<option value="">-- Selecciona una categoría --</option>';
+        categorias.forEach(cat => {
+          html += `<option value="${cat.id}">${cat.nombre}</option>`;
+        });
+        html += '<option value="NUEVA">+ Crear nueva categoría</option>';
+        select.innerHTML = html;
+
+        // Listener para detectar "+ Crear nueva categoría"
+        select.onchange = async (e) => {
+          if (e.target.value === 'NUEVA') {
+            const nombre = prompt('Escribe el nombre de la nueva categoría:');
+            if (nombre && nombre.trim()) {
+              await crearCategoria(nombre.trim());
+            } else {
+              select.value = '';
+            }
+          }
+        };
+      } catch (error) {
+        console.error('Error cargando categorías:', error);
+      }
+    }
+
+    async function crearCategoria(nombreInput = null) {
+      const nombre = nombreInput || document.getElementById('nuevaCatNombre').value;
+      const visibleVacia = document.getElementById('catVisibleVacia').checked;
+
+      if (!nombre) {
+        mostrarMensaje('Escribe un nombre para la categoría', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetchAdmin(`${API_URL}/api/admin/categorias`, {
+          method: 'POST',
+          body: JSON.stringify({ 
+            nombre, 
+            orden: categorias.length, 
+            visible_si_vacia: visibleVacia 
+          })
+        });
+
+        if (res.ok) {
+          const nueva = await res.json();
+          mostrarMensaje('✅ Categoría creada', 'exito');
+          document.getElementById('nuevaCatNombre').value = '';
+          document.getElementById('catVisibleVacia').checked = false;
+          
+          await cargarCategorias();
+          
+          // Seleccionar la nueva categoría en el dropdown
+          document.getElementById('categoria_id').value = nueva.id;
+          
+          if (document.getElementById('categoriasTab').classList.contains('active')) {
+            renderCategoriasAdmin();
+          }
+        }
+      } catch (error) {
+        const msg = analizarError(error);
+        if (msg) mostrarMensaje(msg, 'error');
+      }
+    }
+
+    function renderCategoriasAdmin() {
+      const html = categorias.map(cat => `
+        <div class="platillo-item" draggable="true" data-id="${cat.id}" ondragover="dragOver(event)" ondrop="dropCategoria(event)" ondragstart="dragStartCat(event)">
+          <div class="platillo-info">
+            <strong>${cat.nombre}</strong>
+            <p style="font-size: 12px; color: var(--color-gris);">
+              ${cat.visible_si_vacia ? 'Visible aunque esté vacía' : 'Solo si tiene platillos'} | Orden: ${cat.orden}
+            </p>
+          </div>
+          <div class="platillo-acciones">
+            <span style="cursor:grab;font-size:18px;color:#9ca3af;">⠿</span>
+            <button class="danger" onclick="eliminarCategoria('${cat.id}')">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('listaCategoriasAdmin').innerHTML = html || '<p>No hay categorías</p>';
+    }
+
+    let dragCatId = null;
+    function dragStartCat(e) {
+      dragCatId = e.currentTarget.dataset.id;
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    async function dropCategoria(e) {
+      e.preventDefault();
+      const targetId = e.currentTarget.dataset.id;
+      if (!dragCatId || dragCatId === targetId) return;
+
+      const srcIdx = categorias.findIndex(c => c.id === dragCatId);
+      const tgtIdx = categorias.findIndex(c => c.id === targetId);
+      
+      const [moved] = categorias.splice(srcIdx, 1);
+      categorias.splice(tgtIdx, 0, moved);
+
+      try {
+        await Promise.all(categorias.map((c, i) => 
+          fetchAdmin(`${API_URL}/api/admin/categorias/${c.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ orden: i })
+          })
+        ));
+        renderCategoriasAdmin();
+        mostrarMensaje('✅ Orden de categorías actualizado', 'exito');
+      } catch (error) {
+        const msg = analizarError(error);
+        if (msg) mostrarMensaje(msg, 'error');
+      }
+    }
+
+    async function eliminarCategoria(id) {
+      if (!confirm('¿Seguro? Se fallará si tiene platillos activos.')) return;
+      try {
+        const res = await fetchAdmin(`${API_URL}/api/admin/categorias/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          mostrarMensaje('✅ Categoría eliminada', 'exito');
+          cargarDatos();
+        } else {
+          const err = await res.json();
+          mostrarMensaje(`❌ ${err.error}`, 'error');
+        }
+      } catch (error) {
+        const msg = analizarError(error);
+        if (msg) mostrarMensaje(msg, 'error');
       }
     }
 
@@ -415,12 +640,8 @@
 
       try {
         const promises = Object.entries(data).map(([key, value]) =>
-          fetch(`${API_URL}/api/admin/config`, {
+          fetchAdmin(`${API_URL}/api/admin/config`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-          'x-admin-password': adminPassword
-            },
             body: JSON.stringify({ key, value })
           })
         );
@@ -428,7 +649,8 @@
         await Promise.all(promises);
         mostrarMensaje('✅ Configuración guardada', 'exito');
       } catch (error) {
-        mostrarMensaje(`Error: ${error.message}`, 'error');
+        const msg = analizarError(error);
+        if (msg) mostrarMensaje(msg, 'error');
       }
     }
 
@@ -438,14 +660,16 @@
         return;
       }
 
+      const select = document.getElementById('categoria_id');
       const data = {
-        categoria: document.getElementById('categoria').value,
+        categoria_id: select.value,
+        categoria: select.options[select.selectedIndex]?.text,
         nombre: document.getElementById('nombre').value,
         descripcion: document.getElementById('descripcion').value,
         precio: parseFloat(document.getElementById('precio').value),
       };
 
-      if (!data.categoria || !data.nombre || !data.precio) {
+      if (!data.categoria_id || !data.nombre || isNaN(data.precio)) {
         mostrarMensaje('Rellena todos los campos obligatorios', 'error');
         return;
       }
@@ -454,14 +678,18 @@
 
       try {
         if (imagenFile) {
+          if (imagenFile.size > 5 * 1024 * 1024) {
+            mostrarMensaje('❌ La imagen es muy pesada, máximo 5MB', 'error');
+            return;
+          }
+
           const progress = document.getElementById('uploadProgress');
           progress.style.display = 'block';
           const formData = new FormData();
           formData.append('imagen', imagenFile);
 
-          const uploadRes = await fetch(`${API_URL}/api/upload/imagen`, {
+          const uploadRes = await fetchAdmin(`${API_URL}/api/upload/imagen`, {
             method: 'POST',
-            headers: { 'x-admin-password': adminPassword },
             body: formData
           });
           progress.style.display = 'none';
@@ -471,85 +699,137 @@
             data.imagen_url = uploadData.url;
           } else {
             const errText = await uploadRes.text();
-            mostrarMensaje(`❌ Error subiendo imagen: ${errText}`, 'error');
-            return;
+            console.error('Error subiendo imagen:', errText);
+            const continuar = confirm('❌ No se pudo subir la imagen. ¿Deseas guardar el platillo SIN foto por ahora? (Puedes intentar subirla después editando el platillo).');
+            if (!continuar) return; // Se detiene pero NO limpia el formulario
+            data.imagen_url = null;
           }
         }
 
-        const res = await fetch(`${API_URL}/api/admin/platillo`, {
+        const res = await fetchAdmin(`${API_URL}/api/admin/platillo`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-admin-password': adminPassword
-          },
           body: JSON.stringify(data)
         });
 
         if (res.ok) {
-          const nuevoPlatillo = await res.json();
           mostrarMensaje('✅ Platillo agregado correctamente', 'exito');
           limpiarFormularioPlatillo();
-          // Actualizar array local y re-renderizar sin saltar de pantalla
-          const cat = nuevoPlatillo.categoria || data.categoria;
-          if (!menu[cat]) menu[cat] = [];
-          menu[cat].push(nuevoPlatillo);
-          mostrarPlatillos(menu);
+          cargarDatos();
         } else {
           const errText = await res.text();
           mostrarMensaje(`❌ Error: ${errText}`, 'error');
         }
       } catch (error) {
-        mostrarMensaje(`Error: ${error.message}`, 'error');
-        console.error('Error en agregarPlatillo:', error);
+        const msg = analizarError(error);
+        if (msg) {
+          mostrarMensaje(msg, 'error');
+          console.error('Error en agregarPlatillo:', error);
+        }
       }
     }
 
     function mostrarPlatillos(menu) {
-      const categorias = Object.keys(menu);
-      const orden = ['especial', ...categorias.filter(c => c !== 'especial')];
-
-      const html = orden.filter(c => menu[c]).map(categoria => {
-        const platillos = menu[categoria];
-        const nombreCat = categoria === 'especial' ? '⭐ Especial del día' : categoria.charAt(0).toUpperCase() + categoria.slice(1);
+      // Usamos el array 'categorias' global para asegurar el orden y mostrar vacías
+      const html = categorias.map((cat, index) => {
+        const platillos = menu[cat.nombre] || [];
+        
+        // Si no tiene platillos y no es visible_si_vacia, no la mostramos en la lista de gestión
+        // (pero sí en la pestaña de categorías)
+        if (platillos.length === 0 && !cat.visible_si_vacia) return '';
 
         const itemsHtml = platillos.map(p => `
           <div class="platillo-item"
                draggable="true"
                data-id="${p.id}"
-               data-categoria="${p.categoria}"
+               data-categoria-id="${p.categoria_id}"
                ondragstart="dragStart(event)"
                ondragover="dragOver(event)"
                ondrop="dropPlatillo(event)"
-               ondragend="dragEnd(event)"
-               title="Arrastra para reordenar o cambiar de categoría">
+               ondragend="dragEnd(event)">
             ${p.imagen_url
               ? `<img src="${p.imagen_url}" alt="${p.nombre}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;flex-shrink:0;">`
               : `<div style="width:64px;height:64px;border-radius:8px;background:linear-gradient(135deg,#1e3a8a,#2563eb);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">🍽️</div>`
             }
-            <div class="platillo-info" style="flex:1;min-width:0">
+            <div class="platillo-info">
               <strong>${p.nombre}</strong> - $${parseFloat(p.precio).toFixed(2)}
               <p style="font-size:12px;color:var(--color-gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.descripcion || ''}</p>
             </div>
             <div class="platillo-acciones">
-              <span style="cursor:grab;font-size:18px;color:#9ca3af;margin-right:4px" title="Arrastra para reordenar">⠿</span>
-              <button class="secondary" onclick="editarPlatillo('${p.id}')">✏️ Editar</button>
-              <button class="danger" onclick="eliminarPlatillo('${p.id}')">🗑️ Eliminar</button>
+              <span style="cursor:grab;font-size:18px;color:#9ca3af;">⠿</span>
+              <button class="secondary" onclick="editarPlatillo('${p.id}')">✏️</button>
+              <button class="danger" onclick="eliminarPlatillo('${p.id}')">🗑️</button>
             </div>
           </div>
         `).join('');
 
-        return `<h4 style="margin:18px 0 8px;padding-bottom:6px;border-bottom:2px solid #f3f4f6">${nombreCat} <span style="font-size:12px;color:#9ca3af;font-weight:normal">(${platillos.length} platillos)</span></h4>${itemsHtml}`;
+        return `
+          <div class="categoria-contenedor" data-categoria-id="${cat.id}" data-categoria-nombre="${cat.nombre}">
+            <div class="categoria-header" style="margin-top:25px; padding-bottom:8px; border-bottom:2px solid #f3f4f6; display:flex; align-items:center; justify-content:space-between;">
+              <h4 style="margin:0;">
+                ${cat.nombre} 
+                <span style="font-size:12px; color:var(--color-gris); font-weight:normal;">(${platillos.length} platillos)</span>
+              </h4>
+              <div style="display:flex; gap:5px;">
+                <button class="secondary" style="padding:4px 8px;" onclick="subirCategoria('${cat.id}')" title="Subir sección">▲</button>
+                <button class="secondary" style="padding:4px 8px;" onclick="bajarCategoria('${cat.id}')" title="Bajar sección">▼</button>
+                <button class="danger" style="padding:4px 8px;" onclick="eliminarCategoria('${cat.id}')" title="Eliminar sección">🗑️</button>
+              </div>
+            </div>
+            <div class="categoria-platillos" 
+                 data-categoria-id="${cat.id}" 
+                 ondragover="dragOver(event)" 
+                 ondrop="dropPlatillo(event)"
+                 style="min-height: 50px; padding-top: 10px;">
+              ${itemsHtml || '<p style="font-size:12px; color:var(--color-gris); padding: 10px 0;">Esta categoría está vacía. Suelta un platillo aquí.</p>'}
+            </div>
+          </div>
+        `;
       }).join('');
 
       document.getElementById('listaPlatillos').innerHTML = html || '<p>No hay platillos aún</p>';
     }
 
+    async function subirCategoria(id) {
+      const idx = categorias.findIndex(c => c.id === id);
+      if (idx <= 0) return;
+      await intercambiarCategorias(idx, idx - 1);
+    }
+
+    async function bajarCategoria(id) {
+      const idx = categorias.findIndex(c => c.id === id);
+      if (idx === -1 || idx >= categorias.length - 1) return;
+      await intercambiarCategorias(idx, idx + 1);
+    }
+
+    async function intercambiarCategorias(idx1, idx2) {
+      const cat1 = categorias[idx1];
+      const cat2 = categorias[idx2];
+      
+      try {
+        await fetchAdmin(`${API_URL}/api/admin/categorias/reordenar`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            cambios: [
+              { id: cat1.id, orden: cat2.orden },
+              { id: cat2.id, orden: cat1.orden }
+            ]
+          })
+        });
+        await cargarDatos();
+        mostrarMensaje('✅ Orden de secciones actualizado', 'exito');
+      } catch (error) {
+        if (error.message !== 'Sesión expirada') mostrarMensaje('Error al reordenar secciones', 'error');
+      }
+    }
+
     let dragSrcId = null;
-    let dragSrcCat = null;
+    let dragSrcCatId = null;
+
+    let dropPosition = 'before'; // 'before' o 'after'
 
     function dragStart(e) {
       dragSrcId = e.currentTarget.dataset.id;
-      dragSrcCat = e.currentTarget.dataset.categoria;
+      dragSrcCatId = e.currentTarget.dataset.categoriaId;
       e.currentTarget.style.opacity = '0.4';
       e.dataTransfer.effectAllowed = 'move';
     }
@@ -557,66 +837,112 @@
     function dragOver(e) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      e.currentTarget.style.borderTop = '3px solid var(--color-primario)';
+      
+      const item = e.target.closest('.platillo-item');
+      const container = e.target.closest('.categoria-platillos');
+
+      // Limpiar bordes y fondos previos
+      document.querySelectorAll('.platillo-item').forEach(el => {
+        el.style.borderTop = '';
+        el.style.borderBottom = '';
+      });
+      document.querySelectorAll('.categoria-platillos').forEach(el => el.style.background = '');
+
+      if (item) {
+        const rect = item.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        
+        if (e.clientY < midY) {
+          item.style.borderTop = '3px solid var(--color-primario)';
+          dropPosition = 'before';
+        } else {
+          item.style.borderBottom = '3px solid var(--color-primario)';
+          dropPosition = 'after';
+        }
+      } else if (container) {
+        container.style.background = 'rgba(249, 115, 22, 0.05)';
+        dropPosition = 'after'; // Al final si es el contenedor vacío
+      }
     }
 
     function dragEnd(e) {
       e.currentTarget.style.opacity = '1';
       document.querySelectorAll('.platillo-item').forEach(el => {
         el.style.borderTop = '';
+        el.style.borderBottom = '';
       });
+      document.querySelectorAll('.categoria-platillos').forEach(el => el.style.background = '');
     }
 
     async function dropPlatillo(e) {
       e.preventDefault();
-      const targetId = e.currentTarget.dataset.id;
-      const targetCat = e.currentTarget.dataset.categoria;
-      e.currentTarget.style.borderTop = '';
+      const targetContainer = e.currentTarget; 
+      const targetItem = e.target.closest('.platillo-item');
+      
+      const targetCatId = targetContainer.dataset.categoriaId;
+      const targetPlatilloId = targetItem ? targetItem.dataset.id : null;
 
-      if (!dragSrcId || dragSrcId === targetId) return;
+      if (!dragSrcId) return;
+
+      const catSourceObj = categorias.find(c => c.id === dragSrcCatId);
+      const catTargetObj = categorias.find(c => c.id === targetCatId);
+      if (!catSourceObj || !catTargetObj) return;
 
       try {
-        if (dragSrcCat !== targetCat) {
-          await fetch(`${API_URL}/api/admin/platillo/${dragSrcId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-            body: JSON.stringify({ categoria: targetCat })
-          });
-          mostrarMensaje(`✅ Platillo movido a "${targetCat}"`, 'exito');
+        const sourceList = [...(menu[catSourceObj.nombre] || [])];
+        let targetList = dragSrcCatId === targetCatId ? sourceList : [...(menu[catTargetObj.nombre] || [])];
+
+        // 1. Remover de la lista origen
+        const srcIdx = sourceList.findIndex(p => p.id === dragSrcId);
+        if (srcIdx === -1) return;
+        const [movedItem] = sourceList.splice(srcIdx, 1);
+
+        // 2. Insertar en la lista destino y actualizar sus propiedades de categoría en memoria
+        movedItem.categoria_id = targetCatId;
+        movedItem.categoria = catTargetObj.nombre;
+
+        if (targetPlatilloId) {
+          let tgtIdx = targetList.findIndex(p => p.id === targetPlatilloId);
+          if (dropPosition === 'after') tgtIdx++;
+          targetList.splice(tgtIdx, 0, movedItem);
         } else {
-          const cat = menu[dragSrcCat] || [];
-          const srcIdx = cat.findIndex(p => p.id === dragSrcId);
-          const tgtIdx = cat.findIndex(p => p.id === targetId);
-          if (srcIdx === -1 || tgtIdx === -1) return;
-
-          [cat[srcIdx], cat[tgtIdx]] = [cat[tgtIdx], cat[srcIdx]];
-
-          await Promise.all(cat.map((p, i) =>
-            fetch(`${API_URL}/api/admin/platillo/${p.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-              body: JSON.stringify({ orden: i })
-            })
-          ));
+          targetList.push(movedItem);
         }
-        // Re-renderizar en el DOM sin recargar toda la página
-        if (dragSrcCat !== targetCat) {
-          // Mover el platillo al array de la nueva categoría en memoria
-          const srcCat = menu[dragSrcCat] || [];
-          const idx = srcCat.findIndex(p => p.id === dragSrcId);
-          if (idx !== -1) {
-            const [movido] = srcCat.splice(idx, 1);
-            movido.categoria = targetCat;
-            if (!menu[targetCat]) menu[targetCat] = [];
-            menu[targetCat].push(movido);
-            // Si la categoría origen quedó vacía, eliminarla del objeto
-            if (srcCat.length === 0) delete menu[dragSrcCat];
-          }
-          mostrarMensaje(`✅ Platillo movido a "${targetCat}"`, 'exito');
+
+        // 3. Preparar cambios para el servidor (reordenar secuencialmente)
+        // Actualizamos los objetos en memoria 'orden' también para que el estado sea idéntico al DB
+        const cambios = [];
+        
+        targetList.forEach((p, i) => {
+          p.orden = i; // Sincronizar orden en memoria
+          cambios.push({ id: p.id, orden: i, categoria_id: targetCatId });
+        });
+
+        if (dragSrcCatId !== targetCatId) {
+          sourceList.forEach((p, i) => {
+            p.orden = i; // Sincronizar orden en memoria (origen)
+            cambios.push({ id: p.id, orden: i });
+          });
         }
+
+        // 4. Enviar al servidor
+        await fetchAdmin(`${API_URL}/api/admin/platillos/reordenar`, {
+          method: 'PUT',
+          body: JSON.stringify({ cambios })
+        });
+
+        // 5. Actualizar estado local y re-renderizar
+        menu[catSourceObj.nombre] = sourceList;
+        menu[catTargetObj.nombre] = targetList;
         mostrarPlatillos(menu);
+        mostrarMensaje('✅ Menú organizado', 'exito');
+
       } catch (err) {
-        mostrarMensaje('❌ Error al reordenar: ' + err.message, 'error');
+        if (err.message !== 'Sesión expirada') {
+          console.error(err);
+          mostrarMensaje('Error al organizar: ' + err.message, 'error');
+          cargarDatos();
+        }
       }
     }
 
@@ -625,9 +951,8 @@
       if (!confirm('¿Estás seguro?')) return;
 
       try {
-        const res = await fetch(`${API_URL}/api/admin/platillo/${id}`, {
-          method: 'DELETE',
-          headers: { 'x-admin-password': adminPassword }
+        const res = await fetchAdmin(`${API_URL}/api/admin/platillo/${id}`, {
+          method: 'DELETE'
         });
 
         if (res.ok) {
@@ -635,13 +960,19 @@
           cargarDatos();
         }
       } catch (error) {
-        mostrarMensaje(`Error: ${error.message}`, 'error');
+        if (error.message !== 'Sesión expirada') {
+          mostrarMensaje(`Error: ${error.message}`, 'error');
+        }
       }
     }
 
     function mostrarClientes(clientes) {
       const html = clientes.map(c => `
         <div class="platillo-item">
+          ${c.foto_url 
+            ? `<img src="${c.foto_url}" alt="${c.nombre}" style="width:48px;height:48px;object-fit:cover;border-radius:50%;flex-shrink:0;border:2px solid #e5e7eb;">`
+            : `<div style="width:48px;height:48px;border-radius:50%;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid #e5e7eb;">👤</div>`
+          }
           <div class="platillo-info">
             <strong>${c.nombre}</strong>
             <p style="font-size: 12px; color: var(--color-gris);">${c.direccion} | ${c.telefono || 'Sin teléfono'}</p>
@@ -653,7 +984,6 @@
     }
 
     function editarPlatillo(id) {
-      // Buscar el platillo en el menú
       let platillo = null;
       for (let cat in menu) {
         const found = menu[cat].find(p => p.id === id);
@@ -663,86 +993,112 @@
         }
       }
 
-      if (!platillo) {
-        mostrarMensaje('Platillo no encontrado', 'error');
-        return;
-      }
+      if (!platillo) return;
 
-      // Llenar formulario con datos actuales
-      document.getElementById('categoria').value = platillo.categoria;
+      document.getElementById('categoria_id').value = platillo.categoria_id || '';
       document.getElementById('nombre').value = platillo.nombre;
       document.getElementById('descripcion').value = platillo.descripcion || '';
       document.getElementById('precio').value = platillo.precio;
       document.getElementById('imagenFile').value = '';
       editandoPlatilloId = id;
 
-      // Cambiar botón a "Guardar cambios"
       const btnAgregar = document.getElementById('btnPlatilloSubmit');
       btnAgregar.textContent = '💾 Guardar Cambios';
 
-      // Activar tab de platillos y hacer scroll al formulario
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('platillos').classList.add('active');
-      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      mostrarTab('platillos');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      mostrarMensaje('✏️ Editando platillo — modifica los campos y pulsa Guardar Cambios', 'exito');
     }
 
     async function guardarCambiosPlatillo(id) {
+      const select = document.getElementById('categoria_id');
       const data = {
-        categoria: document.getElementById('categoria').value,
+        categoria_id: select.value,
+        categoria: select.options[select.selectedIndex]?.text,
         nombre: document.getElementById('nombre').value,
         descripcion: document.getElementById('descripcion').value,
         precio: parseFloat(document.getElementById('precio').value),
       };
 
-      if (!data.categoria || !data.nombre || !data.precio) {
+      if (!data.categoria_id || !data.nombre || isNaN(data.precio)) {
         mostrarMensaje('Rellena todos los campos obligatorios', 'error');
         return;
       }
 
+      const imagenFile = document.getElementById('imagenFile').files[0];
+
       try {
-        const res = await fetch(`${API_URL}/api/admin/platillo/${id}`, {
+        if (imagenFile) {
+          if (imagenFile.size > 5 * 1024 * 1024) {
+            mostrarMensaje('❌ La imagen es muy pesada, máximo 5MB', 'error');
+            return;
+          }
+
+          const progress = document.getElementById('uploadProgress');
+          progress.style.display = 'block';
+          const formData = new FormData();
+          formData.append('imagen', imagenFile);
+
+          const uploadRes = await fetchAdmin(`${API_URL}/api/upload/imagen`, {
+            method: 'POST',
+            body: formData
+          });
+          progress.style.display = 'none';
+
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            data.imagen_url = uploadData.url;
+          } else {
+            const errText = await uploadRes.text();
+            console.error('Error subiendo imagen:', errText);
+            const continuar = confirm('❌ No se pudo subir la nueva imagen. ¿Deseas guardar los demás cambios sin actualizar la foto?');
+            if (!continuar) return; // Se detiene pero NO limpia el formulario
+            // Si elige continuar, simplemente no enviamos imagen_url en el body para que se mantenga la anterior
+            // o podríamos forzar null si así se desea, pero usualmente querrá mantener la vieja si la nueva falló.
+            // Según la lógica de server.js, si imagen_url es undefined no se actualiza.
+          }
+        }
+
+        const res = await fetchAdmin(`${API_URL}/api/admin/platillo/${id}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-admin-password': adminPassword
-          },
           body: JSON.stringify(data)
         });
 
         if (res.ok) {
           mostrarMensaje('✅ Platillo actualizado', 'exito');
           limpiarFormularioPlatillo();
-          
-          // Restaurar botón
           const btnAgregar = document.getElementById('btnPlatilloSubmit');
           btnAgregar.textContent = '➕ Agregar Platillo';
           editandoPlatilloId = null;
-          
           cargarDatos();
-        } else {
-          const errText = await res.text();
-          mostrarMensaje(`❌ Error: ${errText}`, 'error');
         }
       } catch (error) {
-        mostrarMensaje(`Error: ${error.message}`, 'error');
-        console.error(error);
+        if (error.message !== 'Sesión expirada') mostrarMensaje(`Error: ${error.message}`, 'error');
       }
     }
 
     function limpiarFormularioPlatillo() {
-      document.getElementById('categoria').value = '';
+      document.getElementById('categoria_id').value = '';
       document.getElementById('nombre').value = '';
       document.getElementById('descripcion').value = '';
       document.getElementById('precio').value = '';
       document.getElementById('imagenFile').value = '';
     }
 
+    function setupEventListeners() {
+      document.getElementById('imagenFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+          mostrarMensaje('❌ La imagen pesa demasiado (máximo 5MB). Elige otra o comprímela.', 'error');
+          this.value = ''; // Limpiar selección
+        }
+      });
+    }
+
     // Cargar datos si ya estás autenticado
     window.addEventListener('load', () => {
-      // Intentar auto-login con contraseña guardada
+      setupEventListeners();
       if (adminPassword && !adminAuth) {
         document.getElementById('adminPassword').value = adminPassword;
         autenticar();

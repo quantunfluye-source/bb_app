@@ -469,7 +469,7 @@
 
       async loadConfig() {
         try {
-          const res = await fetch('/api/config');
+          const res = await fetch('/api/config', { cache: 'no-store' });
           const config = await res.json();
           
           // config ya es un objeto {key: value}
@@ -482,7 +482,7 @@
 
       async loadMenu() {
         try {
-          const res = await fetch('/api/menu');
+          const res = await fetch('/api/menu', { cache: 'no-store' });
           this.menu = await res.json();
         } catch (e) {
           console.error('Error cargando menú:', e);
@@ -497,6 +497,12 @@
             this.clienteData = await res.json();
             localStorage.setItem('mr_nombre', this.clienteData.nombre || '');
             localStorage.setItem('mr_direccion', this.clienteData.direccion || '');
+
+            // Mostrar foto en el header si existe
+            if (this.clienteData.foto_url) {
+              const btnMenu = document.getElementById('btnMenu');
+              btnMenu.innerHTML = `<img src="${this.clienteData.foto_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--color-primario);">`;
+            }
           }
         } catch (e) {
           console.error('Error cargando datos cliente:', e);
@@ -516,12 +522,13 @@
         const nombreTienda = this.config.nombre_tienda || 'Menú Rápido';
         document.getElementById('nombreTienda').textContent = nombreTienda;
 
-        if (this.config.logo_url) {
+        const placeholder = document.getElementById('logoImagen');
+        if (this.config.logo_url && placeholder) {
           const img = document.createElement('img');
           img.src = this.config.logo_url;
           img.className = 'logo-imagen';
           img.alt = nombreTienda;
-          document.querySelector('.header-logo').replaceChild(img, document.getElementById('logoImagen'));
+          placeholder.parentNode.replaceChild(img, placeholder);
         }
       },
 
@@ -529,22 +536,22 @@
         const container = document.getElementById('contenidoMenu');
         container.innerHTML = '';
 
-        // Sección especial
-        if (this.menu.especial && this.menu.especial.length > 0) {
-          const secEspecial = this.createSeccionEspecial(this.menu.especial);
-          container.appendChild(secEspecial);
-        }
-
-        // Otras secciones
+        // El backend ya envía las categorías en el orden correcto
         for (const [categoria, platillos] of Object.entries(this.menu)) {
-          if (categoria !== 'especial') {
-            const sec = this.createSeccion(categoria, platillos);
-            container.appendChild(sec);
+          let sec;
+          if (categoria.toLowerCase() === 'especial') {
+            sec = this.createSeccionEspecial(platillos);
+          } else {
+            sec = this.createSeccion(categoria, platillos);
           }
+          
+          if (sec) container.appendChild(sec);
         }
       },
 
       createSeccionEspecial(platillos) {
+        if (!platillos || platillos.length === 0) return null;
+
         const sec = document.createElement('div');
         sec.className = 'seccion seccion-especial';
 
@@ -570,6 +577,8 @@
       },
 
       createSeccion(categoria, platillos) {
+        if (!platillos || platillos.length === 0) return null;
+
         const sec = document.createElement('div');
         sec.className = 'seccion';
 

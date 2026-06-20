@@ -432,7 +432,8 @@
       }
 
       try {
-        const res = await fetch(`${API_URL}/api/config`, {
+        const res = await fetch(`${API_URL}/api/admin/verificar`, {
+          method: 'POST',
           headers: { 'x-admin-password': password }
         });
 
@@ -996,10 +997,30 @@
             <strong>${c.nombre}</strong>
             <p style="font-size: 12px; color: var(--color-gris);">${c.direccion} | ${c.telefono || 'Sin teléfono'}</p>
           </div>
+          <div class="platillo-acciones">
+            <button class="danger" onclick="eliminarCliente('${c.id}')">🗑️</button>
+          </div>
         </div>
       `).join('');
 
       document.getElementById('listaClientes').innerHTML = html || '<p>No hay clientes registrados</p>';
+    }
+
+    async function eliminarCliente(id) {
+      if (!confirm('¿Seguro que deseas eliminar a este cliente?')) return;
+      try {
+        const res = await fetchAdmin(`${API_URL}/api/admin/clientes/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          mostrarMensaje('✅ Cliente eliminado', 'exito');
+          cargarDatos();
+        } else {
+          const err = await res.json();
+          mostrarMensaje(`❌ ${err.error}`, 'error');
+        }
+      } catch (error) {
+        const msg = analizarError(error);
+        if (msg) mostrarMensaje(msg, 'error');
+      }
     }
 
     function editarPlatillo(id) {

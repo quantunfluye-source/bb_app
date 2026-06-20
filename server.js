@@ -306,6 +306,11 @@ app.get('/api/clientes/:session_id', async (req, res) => {
 
 // ============= ENDPOINTS CON AUTENTICACIÓN =============
 
+// POST /api/admin/verificar - Verifica si la contraseña es correcta
+app.post('/api/admin/verificar', requireAdminAuth, async (req, res) => {
+  res.json({ ok: true });
+});
+
 // POST /api/admin/config - Guarda clave-valor en config
 app.post('/api/admin/config', requireAdminAuth, async (req, res) => {
   try {
@@ -323,6 +328,25 @@ app.post('/api/admin/config', requireAdminAuth, async (req, res) => {
     if (error) throw error;
     
     res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Endpoints de Clientes (Admin) ---
+
+// DELETE /api/admin/clientes/:id - Eliminar cliente
+app.delete('/api/admin/clientes/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const { error } = await supabase
+      .from('clientes')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ message: 'Cliente eliminado' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

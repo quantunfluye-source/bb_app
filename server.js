@@ -67,17 +67,9 @@ const upload = multer({
 // Middleware de autenticación
 const requireAdminAuth = (req, res, next) => {
   const adminPassword = req.headers['x-admin-password'];
-  
-  // LOGS DE DEPURACIÓN (Temporal)
-  console.log('--- DEBUG AUTH ---');
-  console.log('Password recibida (longitud):', adminPassword ? adminPassword.length : 'null');
-  console.log('Password esperada (longitud):', process.env.ADMIN_PASSWORD ? process.env.ADMIN_PASSWORD.length : 'null');
-  
   if (adminPassword !== process.env.ADMIN_PASSWORD) {
-    console.log('❌ Autenticación fallida');
     return res.status(401).json({ error: 'No autorizado' });
   }
-  console.log('✅ Autenticación exitosa');
   next();
 };
 
